@@ -90,6 +90,38 @@ _COUNTRY_PREFIX_RE = re.compile(
     re.IGNORECASE,
 )
 
+_COUNTRY_DETECT_RE = re.compile(
+    r'^(USA?|UK|CA|AU|NZ|FR|DE|IT|ES|MX|BR|IN|JP|IE|NL|BE|AT|CH|SE|NO|DK|FI|PL|PT|CZ|HU|RO|GR|TR|ZA|KR|PH|SG|HK|TW)\s*[:|  ]',
+    re.IGNORECASE,
+)
+
+_COUNTRY_TO_LOGO_PREFIX = {
+    "US": "usa", "USA": "usa",
+    "UK": "uk",
+    "CA": "ca",
+    "AU": "au",
+    "NZ": "nz",
+    "FR": "fr",
+    "DE": "de",
+    "IT": "it",
+    "ES": "es",
+    "MX": "mx",
+    "BR": "br",
+    "IN": "in",
+    "JP": "jp",
+    "IE": "ie",
+    "NL": "nl",
+    "BE": "be",
+    "AT": "at",
+    "CH": "ch",
+    "SE": "se",
+    "NO": "no",
+    "DK": "dk",
+    "FI": "fi",
+    "PL": "pl",
+    "PT": "pt",
+}
+
 _NOISE_WORDS = {"east", "west", "hd", "uhd", "4k", "fhd", "sd"}
 
 
@@ -125,9 +157,47 @@ def _fuzzy_score(query: str, filename: str) -> float:
     return SequenceMatcher(None, query_lower, name_lower).ratio()
 
 
+@router.get("/countries")
+async def detect_countries(
+    _user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(CachedChannel.name))
+    names = [row[0] for row in result.all() if row[0]]
+
+    detected = set()
+    for name in names:
+        m = _COUNTRY_DETECT_RE.match(name)
+        if m:
+            code = m.group(1).upper()
+            if code == "US":
+                code = "USA"
+            detected.add(code)
+
+    country_labels = {
+        "USA": "United States", "UK": "United Kingdom", "CA": "Canada",
+        "AU": "Australia", "NZ": "New Zealand", "FR": "France", "DE": "Germany",
+        "IT": "Italy", "ES": "Spain", "MX": "Mexico", "BR": "Brazil",
+        "IN": "India", "JP": "Japan", "IE": "Ireland", "NL": "Netherlands",
+        "BE": "Belgium", "AT": "Austria", "CH": "Switzerland", "SE": "Sweden",
+        "NO": "Norway", "DK": "Denmark", "FI": "Finland", "PL": "Poland",
+        "PT": "Portugal",
+    }
+
+    countries = []
+    for code in sorted(detected):
+        countries.append({
+            "code": code,
+            "label": country_labels.get(code, code),
+        })
+
+    return countries
+
+
 @router.get("/search", response_model=list[LogoMatch])
 async def search_logos(
     q: str = Query(..., min_length=1, description="Search term"),
+    country: str = Query(None, description="Country code filter (e.g. USA, UK)"),
     limit: int = Query(20, ge=1, le=100),
     _user: User = Depends(get_current_user),
 ):
@@ -135,10 +205,24 @@ async def search_logos(
 
     cleaned = _clean_channel_name(q)
     search_term = cleaned if cleaned else q.strip()
-    logger.info("Logo search: raw=%r cleaned=%r", q, search_term)
+
+    logo_prefix = None
+    if country:
+        logo_prefix = _COUNTRY_TO_LOGO_PREFIX.get(country.upper())
+
+    if logo_prefix:
+        filtered_entries = [
+            e for e in entries
+            if e["filename"].lower().startswith(logo_prefix)
+        ]
+        logger.info("Logo search: raw=%r cleaned=%r country=%s prefix=%s (%d/%d entries)",
+                     q, search_term, country, logo_prefix, len(filtered_entries), len(entries))
+    else:
+        filtered_entries = entries
+        logger.info("Logo search: raw=%r cleaned=%r (all %d entries)", q, search_term, len(entries))
 
     scored = []
-    for entry in entries:
+    for entry in filtered_entries:
         score = _fuzzy_score(search_term, entry["filename"])
         if score >= 0.3:
             scored.append((score, entry))

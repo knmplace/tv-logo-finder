@@ -18,6 +18,7 @@ import {
   Transition,
   ActionIcon,
   Alert,
+  Chip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { Search, Check, X, Image as ImageIcon, AlertTriangle } from 'lucide-react';
@@ -113,6 +114,8 @@ export default function SearchPage() {
   const [applying, setApplying] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [countries, setCountries] = useState([]);
+  const [selectedCountry, setSelectedCountry] = useState('');
 
   const channelFromParam = channels.find(
     (ch) => ch.id?.toString() === channelIdParam
@@ -123,17 +126,22 @@ export default function SearchPage() {
     label: `${ch.channel_number ? ch.channel_number + ' - ' : ''}${ch.name}`,
   }));
 
+  useEffect(() => {
+    api.get('/api/logos/countries').then(setCountries).catch(() => {});
+  }, []);
+
   const doSearch = useCallback(
-    async (searchQuery, pageNum = 1, append = false) => {
+    async (searchQuery, countryCode = '', pageNum = 1, append = false) => {
       if (!searchQuery.trim()) return;
       setLoading(true);
       setSearched(true);
       try {
         const limit = 30;
-        const offset = (pageNum - 1) * limit;
-        const logos = await api.get(
-          `/api/logos/search?q=${encodeURIComponent(searchQuery)}&limit=${limit}`
-        );
+        let url = `/api/logos/search?q=${encodeURIComponent(searchQuery)}&limit=${limit}`;
+        if (countryCode) {
+          url += `&country=${encodeURIComponent(countryCode)}`;
+        }
+        const logos = await api.get(url);
         if (append) {
           setResults((prev) => [...prev, ...logos]);
         } else {
@@ -155,18 +163,26 @@ export default function SearchPage() {
 
   useEffect(() => {
     if (queryParam) {
-      doSearch(queryParam);
+      doSearch(queryParam, selectedCountry);
     }
   }, []);
 
   const handleSearch = (e) => {
     e.preventDefault();
     setSelectedLogo(null);
-    doSearch(query, 1, false);
+    doSearch(query, selectedCountry, 1, false);
+  };
+
+  const handleCountryChange = (code) => {
+    setSelectedCountry(code);
+    if (searched && query.trim()) {
+      setSelectedLogo(null);
+      doSearch(query, code, 1, false);
+    }
   };
 
   const handleLoadMore = () => {
-    doSearch(query, page + 1, true);
+    doSearch(query, selectedCountry, page + 1, true);
   };
 
   const handleApply = async () => {
@@ -252,6 +268,26 @@ export default function SearchPage() {
           </Button>
         </Group>
       </form>
+
+      {countries.length > 0 && (
+        <Group gap="xs">
+          <Text size="sm" c="#a1a1aa" fw={500}>
+            Country:
+          </Text>
+          <Chip.Group value={selectedCountry} onChange={handleCountryChange}>
+            <Group gap={6}>
+              <Chip value="" variant="light" color="teal" size="xs">
+                All
+              </Chip>
+              {countries.map((c) => (
+                <Chip key={c.code} value={c.code} variant="light" color="teal" size="xs">
+                  {c.code}
+                </Chip>
+              ))}
+            </Group>
+          </Chip.Group>
+        </Group>
+      )}
 
       {loading && results.length === 0 ? (
         <Center py="xl">
