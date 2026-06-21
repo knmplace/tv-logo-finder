@@ -44,7 +44,7 @@ function StatCard({ icon: Icon, label, value, color }) {
           <Icon size={20} color={color} />
         </Box>
         <div>
-          <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+          <Text size="xs" c="#a1a1aa" tt="uppercase" fw={600}>
             {label}
           </Text>
           <Text size="xl" fw={700} c="white">
@@ -185,12 +185,12 @@ export default function DashboardPage() {
               <Table striped highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
-                    <Table.Th c="dimmed">#</Table.Th>
-                    <Table.Th c="dimmed">Logo</Table.Th>
-                    <Table.Th c="dimmed">Channel Name</Table.Th>
-                    <Table.Th c="dimmed">Group</Table.Th>
-                    <Table.Th c="dimmed">Status</Table.Th>
-                    <Table.Th c="dimmed">Actions</Table.Th>
+                    <Table.Th c="#a1a1aa">#</Table.Th>
+                    <Table.Th c="#a1a1aa">Logo</Table.Th>
+                    <Table.Th c="#a1a1aa">Channel Name</Table.Th>
+                    <Table.Th c="#a1a1aa">Group</Table.Th>
+                    <Table.Th c="#a1a1aa">Status</Table.Th>
+                    <Table.Th c="#a1a1aa">Actions</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -224,7 +224,7 @@ export default function DashboardPage() {
                         )}
                       </Table.Td>
                       <Table.Td c="white">{ch.name}</Table.Td>
-                      <Table.Td c="dimmed">{ch.group || '-'}</Table.Td>
+                      <Table.Td c="#d4d4d8">{ch.group || '-'}</Table.Td>
                       <Table.Td>
                         {ch.logo_url ? (
                           <Badge color="green" variant="light" size="sm">

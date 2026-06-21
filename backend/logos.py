@@ -83,7 +83,8 @@ async def _get_tree() -> list[dict]:
 
 def _fuzzy_score(query: str, filename: str) -> float:
     name_lower = filename.rsplit(".", 1)[0].lower().replace("_", " ").replace("-", " ")
-    query_lower = query.lower()
+    query_lower = query.lower().strip()
+    words = query_lower.split()
 
     if query_lower == name_lower:
         return 1.0
@@ -91,6 +92,14 @@ def _fuzzy_score(query: str, filename: str) -> float:
         return 0.9
     if name_lower.startswith(query_lower):
         return 0.85
+
+    if len(words) > 1:
+        matched = sum(1 for w in words if w in name_lower)
+        if matched == len(words):
+            return 0.8 + (0.1 * matched / len(words))
+        if matched == 0:
+            return 0.0
+        return 0.3 * matched / len(words)
 
     return SequenceMatcher(None, query_lower, name_lower).ratio()
 

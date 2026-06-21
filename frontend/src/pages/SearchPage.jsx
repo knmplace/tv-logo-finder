@@ -68,7 +68,7 @@ function LogoCard({ logo, selected, onSelect }) {
         </Box>
         <Text
           size="xs"
-          c="dimmed"
+          c="#d4d4d8"
           ta="center"
           lineClamp={2}
           style={{ wordBreak: 'break-all' }}
@@ -256,7 +256,7 @@ export default function SearchPage() {
         </Center>
       ) : results.length > 0 ? (
         <Stack gap="md">
-          <Text size="sm" c="dimmed">
+          <Text size="sm" c="#a1a1aa">
             {results.length} result{results.length !== 1 ? 's' : ''}
             {hasMore ? '+' : ''}
           </Text>
