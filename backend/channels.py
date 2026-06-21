@@ -47,18 +47,29 @@ def _parse_ecm_channels(data: list[dict]) -> list[dict]:
     return channels
 
 
-def _parse_dispatcharr_channels(data: list[dict]) -> list[dict]:
+def _parse_dispatcharr_channels(data: list[dict], backend_url: str) -> list[dict]:
     channels = []
     for ch in data:
-        logo = ch.get("logo") or {}
-        group = ch.get("group") or {}
+        logo_id = ch.get("effective_logo_id") or ch.get("logo_id")
+        logo_url = None
+        if logo_id:
+            logo_url = f"{backend_url}/api/channels/logos/{logo_id}/cache/"
+
+        group = ch.get("group")
+        if isinstance(group, dict):
+            group_name = group.get("name")
+        elif ch.get("channel_group_id"):
+            group_name = str(ch["channel_group_id"])
+        else:
+            group_name = None
+
         channels.append({
             "id": ch["id"],
-            "name": ch.get("name", ""),
-            "number": ch.get("channel_number"),
-            "group_name": group.get("name") if isinstance(group, dict) else str(group),
-            "current_logo_url": logo.get("url") if isinstance(logo, dict) else None,
-            "logo_id": logo.get("id") if isinstance(logo, dict) else None,
+            "name": ch.get("effective_name") or ch.get("name", ""),
+            "number": ch.get("effective_channel_number") or ch.get("channel_number"),
+            "group_name": group_name,
+            "current_logo_url": logo_url,
+            "logo_id": logo_id,
         })
     return channels
 
@@ -107,7 +118,7 @@ async def _fetch_channels(settings: dict) -> list[dict]:
 
     if backend_type == "ecm":
         return _parse_ecm_channels(all_items)
-    return _parse_dispatcharr_channels(all_items)
+    return _parse_dispatcharr_channels(all_items, backend_url)
 
 
 @router.get("", response_model=list[ChannelResponse])
