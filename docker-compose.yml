@@ -1,0 +1,14 @@
+services:
+  tv-logo-finder:
+    image: ghcr.io/knmplace/tv-logo-finder:latest
+    container_name: tv-logo-finder
+    ports:
+      - "6102:6102"
+    volumes:
+      - tv-logo-finder-data:/data
+    environment:
+      - JWT_SECRET=change-me-to-a-random-string
+    restart: unless-stopped
+
+volumes:
+  tv-logo-finder-data:
