@@ -57,7 +57,7 @@ docker run -d \
 2. Create an admin account (username + password)
 3. Configure your backend connection:
    - **Backend Type**: Choose ECM or Dispatcharr
-   - **Backend URL**: Enter your server URL (e.g., `http://192.168.1.94:6100` for ECM)
+   - **Backend URL**: Enter your server URL (e.g., `http://your-server:6100` for ECM or `http://your-server:9191` for Dispatcharr)
    - **API Key**: Optional, only needed if your backend requires authentication
 4. Test the connection
 5. Click "Sync Channels" on the dashboard to pull your channel list
@@ -81,9 +81,20 @@ You can also go directly to the **Logo Search** page:
 2. Browse results from the [tvlogos](https://github.com/jesmannstl/tvlogos) database
 3. Select a logo and choose which channel to assign it to
 
-## Logo Source
+---
 
-Logos are sourced from the [jesmannstl/tvlogos](https://github.com/jesmannstl/tvlogos) repository, which contains 54,000+ TV channel logos organized by country and channel name. All logos are served via GitHub's raw content CDN, so they work with any IPTV client (Plex, Emby, Jellyfin, etc.) without requiring local hosting.
+## Acknowledgements
+
+> ### tvlogos by jesmannstl
+> This project would not be possible without the incredible work of [**jesmannstl**](https://github.com/jesmannstl) and the [**tvlogos**](https://github.com/jesmannstl/tvlogos) repository. Their effort in curating and maintaining a collection of **54,000+ TV channel logos** across dozens of countries is what powers the entire search and discovery experience in TV Logo Finder. The logos are served directly from their repository via GitHub's CDN — no re-hosting, no copies. All credit for the logo artwork and organization belongs to jesmannstl and the tvlogos contributors. If you find this tool useful, please consider starring their repo and supporting their work.
+
+> ### Dispatcharr
+> [**Dispatcharr**](https://github.com/Dispatcharr/Dispatcharr) is the IPTV proxy and channel management platform that TV Logo Finder was originally built to complement. The Dispatcharr team has built an outstanding open-source solution for managing IPTV streams, EPG data, and channel lineups with features like multi-source failover, stream health monitoring, and a polished web interface. TV Logo Finder connects directly to Dispatcharr's API to sync your channel list and push logo assignments — it's designed to feel like a natural extension of the Dispatcharr workflow. Huge thanks to the Dispatcharr team for building such a solid and extensible platform.
+
+> ### ECM (Enhanced Channel Manager)
+> [**ECM**](https://github.com/Dispatcharr/Dispatcharr) extends Dispatcharr with higher-level channel management capabilities — auto-creation rules, bulk operations, stream probing, M3U change tracking, export profiles, and more. TV Logo Finder supports ECM as a first-class backend, leveraging its richer channel data and management APIs. If you're running ECM, TV Logo Finder integrates seamlessly with your existing setup. Thank you to the ECM developers for pushing the boundaries of what IPTV channel management can look like.
+
+---
 
 ## Configuration
 
