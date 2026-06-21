@@ -14,7 +14,6 @@ import {
   SimpleGrid,
   SegmentedControl,
   Box,
-  Image,
   Loader,
   Center,
   Tooltip,
@@ -33,10 +32,13 @@ import {
   Image as ImageIcon,
   Clock,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import useChannelStore from '../store/channels';
 
 const MAX_SELECTED = 5;
+const PAGE_SIZE = 25;
 
 function StatCard({ icon: Icon, label, value, color }) {
   return (
@@ -64,6 +66,36 @@ function StatCard({ icon: Icon, label, value, color }) {
   );
 }
 
+function LogoThumbnail({ src }) {
+  if (!src) {
+    return (
+      <Box
+        w={32}
+        h={32}
+        style={{
+          borderRadius: 4,
+          backgroundColor: '#3f3f46',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <ImageIcon size={16} color="#71717a" />
+      </Box>
+    );
+  }
+  return (
+    <img
+      src={src}
+      width={32}
+      height={32}
+      loading="lazy"
+      style={{ borderRadius: 4, objectFit: 'contain' }}
+      alt=""
+    />
+  );
+}
+
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { channels, loading, syncing, lastSynced, fetchChannels, syncChannels } =
@@ -71,6 +103,7 @@ export default function DashboardPage() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [selected, setSelected] = useState([]);
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
     if (channels.length === 0) fetchChannels();
@@ -132,6 +165,13 @@ export default function DashboardPage() {
     return result;
   }, [channels, filter, search]);
 
+  useEffect(() => {
+    setPage(0);
+  }, [filter, search]);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const pageRows = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
   return (
     <Stack gap="lg" pb={selected.length > 0 ? 80 : 0}>
       <Group justify="space-between" align="center">
@@ -175,49 +215,49 @@ export default function DashboardPage() {
         />
       </SimpleGrid>
 
-      <Paper p="md" radius="md" withBorder style={{ borderColor: '#3f3f46' }}>
-        <Stack gap="md">
-          <Group justify="space-between">
-            <Group gap="sm">
-              <TextInput
-                placeholder="Search channels..."
-                leftSection={<Search size={16} />}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                w={300}
-              />
-              {selected.length > 0 && (
-                <Badge color="teal" variant="light" size="lg">
-                  {selected.length}/{MAX_SELECTED} selected
-                </Badge>
-              )}
-            </Group>
-            <SegmentedControl
-              value={filter}
-              onChange={setFilter}
-              data={[
-                { label: 'All', value: 'all' },
-                { label: 'Missing Logo', value: 'missing' },
-                { label: 'Has Logo', value: 'has' },
-              ]}
-              color="teal"
-              size="xs"
-            />
-          </Group>
+      <Group justify="space-between">
+        <Group gap="sm">
+          <TextInput
+            placeholder="Search channels..."
+            leftSection={<Search size={16} />}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            w={300}
+          />
+          {selected.length > 0 && (
+            <Badge color="teal" variant="light" size="lg">
+              {selected.length}/{MAX_SELECTED} selected
+            </Badge>
+          )}
+        </Group>
+        <SegmentedControl
+          value={filter}
+          onChange={setFilter}
+          data={[
+            { label: 'All', value: 'all' },
+            { label: 'Missing Logo', value: 'missing' },
+            { label: 'Has Logo', value: 'has' },
+          ]}
+          color="teal"
+          size="xs"
+        />
+      </Group>
 
-          {loading ? (
-            <Center py="xl">
-              <Loader color="teal" />
-            </Center>
-          ) : filtered.length === 0 ? (
-            <Center py="xl">
-              <Text c="dimmed">
-                {channels.length === 0
-                  ? 'No channels loaded. Click "Sync Channels" to fetch from your backend.'
-                  : 'No channels match your filter.'}
-              </Text>
-            </Center>
-          ) : (
+      <Paper p="md" radius="md" withBorder style={{ borderColor: '#3f3f46' }}>
+        {loading ? (
+          <Center py="xl">
+            <Loader color="teal" />
+          </Center>
+        ) : filtered.length === 0 ? (
+          <Center py="xl">
+            <Text c="dimmed">
+              {channels.length === 0
+                ? 'No channels loaded. Click "Sync Channels" to fetch from your backend.'
+                : 'No channels match your filter.'}
+            </Text>
+          </Center>
+        ) : (
+          <Stack gap="md">
             <Table.ScrollContainer minWidth={900}>
               <Table striped highlightOnHover>
                 <Table.Thead>
@@ -251,7 +291,7 @@ export default function DashboardPage() {
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {filtered.map((ch) => {
+                  {pageRows.map((ch) => {
                     const isSelected = selected.some((s) => s.id === ch.id);
                     return (
                       <Table.Tr
@@ -268,31 +308,7 @@ export default function DashboardPage() {
                         </Table.Td>
                         <Table.Td c="white">{ch.channel_number}</Table.Td>
                         <Table.Td>
-                          {ch.logo_url ? (
-                            <Image
-                              src={ch.cache_logo_url || ch.logo_url}
-                              w={32}
-                              h={32}
-                              fit="contain"
-                              fallbackSrc=""
-                              loading="lazy"
-                              style={{ borderRadius: 4 }}
-                            />
-                          ) : (
-                            <Box
-                              w={32}
-                              h={32}
-                              style={{
-                                borderRadius: 4,
-                                backgroundColor: '#3f3f46',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              <ImageIcon size={16} color="#71717a" />
-                            </Box>
-                          )}
+                          <LogoThumbnail src={ch.logo_url ? (ch.cache_logo_url || ch.logo_url) : null} />
                         </Table.Td>
                         <Table.Td c="white">{ch.name}</Table.Td>
                         <Table.Td>
@@ -350,8 +366,46 @@ export default function DashboardPage() {
                 </Table.Tbody>
               </Table>
             </Table.ScrollContainer>
-          )}
-        </Stack>
+
+            {totalPages > 1 && (
+              <Group justify="space-between" align="center">
+                <Text size="sm" c="#a1a1aa">
+                  Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+                </Text>
+                <Group gap="xs">
+                  <ActionIcon
+                    variant="subtle"
+                    color="gray"
+                    disabled={page === 0}
+                    onClick={() => setPage((p) => p - 1)}
+                  >
+                    <ChevronLeft size={16} />
+                  </ActionIcon>
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <Button
+                      key={i}
+                      size="xs"
+                      variant={i === page ? 'filled' : 'subtle'}
+                      color={i === page ? 'teal' : 'gray'}
+                      onClick={() => setPage(i)}
+                      style={{ minWidth: 32 }}
+                    >
+                      {i + 1}
+                    </Button>
+                  ))}
+                  <ActionIcon
+                    variant="subtle"
+                    color="gray"
+                    disabled={page >= totalPages - 1}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    <ChevronRight size={16} />
+                  </ActionIcon>
+                </Group>
+              </Group>
+            )}
+          </Stack>
+        )}
       </Paper>
 
       <Affix position={{ bottom: 0, left: 0, right: 0 }}>
