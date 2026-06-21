@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -9,7 +10,7 @@ from auth import router as auth_router
 from channels import router as channels_router
 from config import router as config_router
 from database import init_db
-from logos import router as logos_router
+from logos import router as logos_router, _get_tree
 
 logging.basicConfig(
     level=logging.INFO,
@@ -18,10 +19,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+async def _preload_logo_tree():
+    try:
+        entries = await _get_tree()
+        logger.info("Preloaded %d logo entries from GitHub", len(entries))
+    except Exception as e:
+        logger.warning("Logo tree preload failed (will retry on first search): %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Initializing database")
     await init_db()
+    asyncio.create_task(_preload_logo_tree())
     logger.info("TV Logo Finder backend ready")
     yield
 
