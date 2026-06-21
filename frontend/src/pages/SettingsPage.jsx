@@ -15,10 +15,15 @@ import {
   Divider,
   Box,
   SegmentedControl,
+  Switch,
+  Badge,
+  Anchor,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { Settings, CheckCircle, XCircle, Plug } from 'lucide-react';
+import { Settings, CheckCircle, XCircle, Plug, ArrowUpCircle, RefreshCw } from 'lucide-react';
 import useSettingsStore from '../store/settings';
+import useUpdateStore from '../store/updates';
+import { APP_VERSION } from '../version';
 
 export default function SettingsPage() {
   const {
@@ -231,6 +236,102 @@ export default function SettingsPage() {
           </Group>
         </Stack>
       </Paper>
+      <UpdateSection />
     </Stack>
+  );
+}
+
+function UpdateSection() {
+  const { updateInfo, loading, checkForUpdates, getNotifyBeta, setNotifyBeta } = useUpdateStore();
+  const [betaEnabled, setBetaEnabled] = useState(getNotifyBeta());
+
+  const handleToggleBeta = (e) => {
+    const val = e.currentTarget.checked;
+    setBetaEnabled(val);
+    setNotifyBeta(val);
+  };
+
+  const handleCheck = async () => {
+    await checkForUpdates(true);
+    notifications.show({
+      title: 'Update check complete',
+      message: updateInfo?.update_available
+        ? 'A new version is available!'
+        : 'You are on the latest version.',
+      color: updateInfo?.update_available ? 'yellow' : 'teal',
+    });
+  };
+
+  return (
+    <Paper
+      p="lg"
+      radius="md"
+      withBorder
+      style={{ borderColor: '#3f3f46' }}
+      maw={600}
+    >
+      <Stack gap="md">
+        <Group gap="sm">
+          <ArrowUpCircle size={20} color="#14917e" />
+          <Title order={5} c="white">
+            Updates
+          </Title>
+        </Group>
+
+        <Divider color="#3f3f46" />
+
+        <Group justify="space-between">
+          <Box>
+            <Text size="sm" c="white" fw={500}>Current Version</Text>
+            <Text size="sm" c="#a1a1aa">v{APP_VERSION}</Text>
+          </Box>
+          {updateInfo?.latest_stable && (
+            <Box>
+              <Text size="sm" c="white" fw={500}>Latest Stable</Text>
+              <Group gap="xs">
+                <Text size="sm" c="#a1a1aa">v{updateInfo.latest_stable}</Text>
+                {updateInfo.update_available && (
+                  <Badge color="yellow" variant="light" size="xs">New</Badge>
+                )}
+              </Group>
+            </Box>
+          )}
+          {updateInfo?.latest_beta && (
+            <Box>
+              <Text size="sm" c="white" fw={500}>Latest Beta</Text>
+              <Text size="sm" c="#a1a1aa">v{updateInfo.latest_beta}</Text>
+            </Box>
+          )}
+        </Group>
+
+        {updateInfo?.update_available && updateInfo.stable_url && (
+          <Alert color="yellow" variant="light">
+            <Text size="sm">
+              A new version is available.{' '}
+              <Anchor href={updateInfo.stable_url} target="_blank" rel="noopener" size="sm">
+                View release notes
+              </Anchor>
+            </Text>
+          </Alert>
+        )}
+
+        <Switch
+          label="Include beta releases in update checks"
+          checked={betaEnabled}
+          onChange={handleToggleBeta}
+          color="teal"
+        />
+
+        <Button
+          variant="light"
+          color="teal"
+          leftSection={<RefreshCw size={16} />}
+          onClick={handleCheck}
+          loading={loading}
+        >
+          Check for Updates
+        </Button>
+      </Stack>
+    </Paper>
   );
 }

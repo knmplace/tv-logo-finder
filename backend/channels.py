@@ -47,13 +47,16 @@ def _parse_ecm_channels(data: list[dict]) -> list[dict]:
     return channels
 
 
-def _parse_dispatcharr_channels(data: list[dict], backend_url: str, group_map: dict[int, str] | None = None) -> list[dict]:
+def _parse_dispatcharr_channels(data: list[dict], backend_url: str, group_map: dict[int, str] | None = None, logo_map: dict[int, str] | None = None) -> list[dict]:
     channels = []
     for ch in data:
         logo_id = ch.get("effective_logo_id") or ch.get("logo_id")
         logo_url = None
         if logo_id:
-            logo_url = f"{backend_url}/api/channels/logos/{logo_id}/cache/"
+            if logo_map and logo_id in logo_map:
+                logo_url = logo_map[logo_id]
+            else:
+                logo_url = f"{backend_url}/api/channels/logos/{logo_id}/cache/"
 
         group = ch.get("group")
         if isinstance(group, dict):
@@ -133,7 +136,24 @@ async def _fetch_channels(settings: dict) -> list[dict]:
     except Exception:
         logger.warning("Could not fetch channel groups, group names may show as IDs")
 
-    return _parse_dispatcharr_channels(all_items, backend_url, group_map)
+    logo_map = {}
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            page_url = f"{backend_url}/api/channels/logos/?page_size=200"
+            while page_url:
+                resp = await client.get(page_url, headers=headers)
+                if resp.status_code != 200:
+                    break
+                data = resp.json()
+                logos = data.get("results", data) if isinstance(data, dict) else data
+                for logo in logos:
+                    if isinstance(logo, dict) and logo.get("id") and logo.get("url"):
+                        logo_map[logo["id"]] = logo["url"]
+                page_url = data.get("next") if isinstance(data, dict) else None
+    except Exception:
+        logger.warning("Could not fetch logo URLs, falling back to cache URLs")
+
+    return _parse_dispatcharr_channels(all_items, backend_url, group_map, logo_map)
 
 
 @router.get("", response_model=list[ChannelResponse])

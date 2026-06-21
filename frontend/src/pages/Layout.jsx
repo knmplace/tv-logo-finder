@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink as RouterNavLink, useLocation } from 'react-router-dom';
 import {
   AppShell,
@@ -14,6 +14,7 @@ import {
   Divider,
   ActionIcon,
   Tooltip,
+  CloseButton,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -26,15 +27,22 @@ import {
   Github,
   PanelLeftClose,
   PanelLeftOpen,
+  ArrowUpCircle,
 } from 'lucide-react';
 import useAuthStore from '../store/auth';
+import useUpdateStore from '../store/updates';
 import { APP_VERSION } from '../version';
 
 export default function Layout() {
   const location = useLocation();
   const { user, logout } = useAuthStore();
+  const { updateInfo, dismissed, checkForUpdates, dismiss } = useUpdateStore();
   const [mobileOpened, { toggle: toggleMobile, close: closeMobile }] = useDisclosure(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (user) checkForUpdates();
+  }, [user, checkForUpdates]);
 
   const navItems = [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -81,9 +89,6 @@ export default function Layout() {
             <Title order={4} c="white" fw={600}>
               TV Logo Finder
             </Title>
-            <Text size="xs" c="dimmed" style={{ opacity: 0.6 }}>
-              beta
-            </Text>
           </Group>
 
           <Menu shadow="md" width={180} position="bottom-end">
@@ -144,6 +149,33 @@ export default function Layout() {
           v{APP_VERSION}
         </Text>
       </AppShell.Navbar>
+
+      {updateInfo?.update_available && !dismissed && (
+        <Box
+          bg="#14532d"
+          px="md"
+          py={6}
+          style={{ borderBottom: '1px solid #166534', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
+        >
+          <ArrowUpCircle size={16} color="#4ade80" />
+          <Text size="sm" c="#4ade80" fw={500}>
+            Update available: v{updateInfo.latest_stable || updateInfo.latest_beta}
+          </Text>
+          {(updateInfo.stable_url || updateInfo.beta_url) && (
+            <Anchor
+              href={updateInfo.stable_url || updateInfo.beta_url}
+              target="_blank"
+              rel="noopener"
+              size="sm"
+              c="#86efac"
+              underline="always"
+            >
+              View release
+            </Anchor>
+          )}
+          <CloseButton size="sm" color="green" variant="subtle" onClick={dismiss} />
+        </Box>
+      )}
 
       <AppShell.Main>
         <Outlet />
