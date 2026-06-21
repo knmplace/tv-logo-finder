@@ -11,7 +11,7 @@ import {
   Alert,
   Box,
 } from '@mantine/core';
-import { Monitor, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import useAuthStore from '../store/auth';
 
 export default function LoginPage() {
@@ -38,15 +38,11 @@ export default function LoginPage() {
       >
         <form onSubmit={handleSubmit}>
           <Stack gap="md" align="center">
-            <Box
-              p="md"
-              style={{
-                borderRadius: '50%',
-                backgroundColor: 'rgba(20, 145, 126, 0.15)',
-              }}
-            >
-              <Monitor size={40} color="#14917e" />
-            </Box>
+            <img
+              src="/logo.jpg"
+              alt="TV Logo Finder"
+              style={{ width: 80, height: 80, borderRadius: 12 }}
+            />
 
             <Title order={2} c="white" ta="center">
               TV Logo Finder

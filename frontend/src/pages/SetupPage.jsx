@@ -15,7 +15,7 @@ import {
   Badge,
   Box,
 } from '@mantine/core';
-import { Monitor, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import useAuthStore from '../store/auth';
 import api from '../api';
 
@@ -95,15 +95,11 @@ export default function SetupPage() {
       >
         <Stack gap="lg">
           <Stack gap="xs" align="center">
-            <Box
-              p="md"
-              style={{
-                borderRadius: '50%',
-                backgroundColor: 'rgba(20, 145, 126, 0.15)',
-              }}
-            >
-              <Monitor size={36} color="#14917e" />
-            </Box>
+            <img
+              src="/logo.jpg"
+              alt="TV Logo Finder"
+              style={{ width: 72, height: 72, borderRadius: 12 }}
+            />
             <Title order={2} c="white">
               TV Logo Finder Setup
             </Title>

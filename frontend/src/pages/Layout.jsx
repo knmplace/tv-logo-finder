@@ -13,7 +13,6 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
-  Monitor,
   LayoutDashboard,
   Search,
   Settings,
@@ -57,7 +56,7 @@ export default function Layout() {
               size="sm"
               color="white"
             />
-            <Monitor size={24} color="#14917e" />
+            <img src="/logo.jpg" alt="TV Logo Finder" style={{ width: 32, height: 32, borderRadius: 6 }} />
             <Title order={4} c="white" fw={600}>
               TV Logo Finder
             </Title>
