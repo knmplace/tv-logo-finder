@@ -125,21 +125,20 @@ export default function SettingsPage() {
 
           <TextInput
             label="Backend URL"
-            placeholder={
-              backendType === 'ecm'
-                ? 'http://192.168.1.94:6100'
-                : 'http://192.168.1.94:9000'
-            }
+            description={backendType === 'ecm' ? 'URL of your ECM instance' : 'URL of your Dispatcharr instance'}
+            placeholder="http://your-server:port"
             value={backendUrl}
             onChange={(e) => setBackendUrl(e.target.value)}
             required
           />
 
           <PasswordInput
-            label="API Key"
-            placeholder="Optional API key for authentication"
+            label={backendType === 'ecm' ? 'Dispatcharr API Key' : 'API Key'}
+            description={backendType === 'ecm' ? 'Required — ECM uses your Dispatcharr API key' : 'Required if authentication is enabled'}
+            placeholder={backendType === 'ecm' ? 'Dispatcharr API key from ECM settings' : 'API key'}
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
+            required={backendType === 'ecm'}
           />
 
           {connectionStatus && (
