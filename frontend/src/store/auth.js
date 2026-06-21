@@ -20,6 +20,10 @@ const useAuthStore = create((set, get) => ({
         user: data.user || null,
         loading: false,
       });
+      if (data.authenticated) {
+        const { default: useChannelStore } = await import('./channels');
+        useChannelStore.getState().fetchChannels();
+      }
     } catch {
       set({ loading: false, isAuthenticated: false });
     }
@@ -37,6 +41,8 @@ const useAuthStore = create((set, get) => ({
         error: null,
       });
       await get().checkStatus();
+      const { default: useChannelStore } = await import('./channels');
+      useChannelStore.getState().fetchChannels();
       return true;
     } catch (err) {
       set({ error: err.message });

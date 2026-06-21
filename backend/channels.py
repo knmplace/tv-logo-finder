@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime, timezone
 
@@ -82,6 +83,62 @@ def _parse_dispatcharr_channels(data: list[dict], backend_url: str, group_map: d
     return channels
 
 
+async def _paginate(client: httpx.AsyncClient, url: str, headers: dict) -> list[dict]:
+    items = []
+    page_url = url
+    while page_url:
+        resp = await client.get(page_url, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
+        if isinstance(data, dict) and "results" in data:
+            items.extend(data["results"])
+            page_url = data.get("next")
+        elif isinstance(data, list):
+            items.extend(data)
+            page_url = None
+        else:
+            page_url = None
+    return items
+
+
+async def _fetch_groups(client: httpx.AsyncClient, backend_url: str, headers: dict) -> dict[int, str]:
+    group_map = {}
+    try:
+        resp = await client.get(f"{backend_url}/api/channels/groups/", headers=headers)
+        if resp.status_code == 200:
+            groups = resp.json()
+            if isinstance(groups, dict) and "results" in groups:
+                groups = groups["results"]
+            for g in groups:
+                if isinstance(g, dict) and "id" in g and "name" in g:
+                    group_map[g["id"]] = g["name"]
+    except Exception:
+        logger.warning("Could not fetch channel groups")
+    return group_map
+
+
+async def _fetch_logos_by_ids(client: httpx.AsyncClient, backend_url: str, headers: dict, logo_ids: set[int]) -> dict[int, str]:
+    if not logo_ids:
+        return {}
+
+    logo_map = {}
+    sem = asyncio.Semaphore(20)
+
+    async def fetch_one(lid: int):
+        async with sem:
+            try:
+                resp = await client.get(f"{backend_url}/api/channels/logos/{lid}/", headers=headers)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    if data.get("url"):
+                        logo_map[lid] = data["url"]
+            except Exception:
+                pass
+
+    await asyncio.gather(*(fetch_one(lid) for lid in logo_ids))
+    return logo_map
+
+
 async def _fetch_channels(settings: dict) -> list[dict]:
     backend_type = settings.get("backend_type")
     backend_url = settings.get("backend_url")
@@ -99,64 +156,31 @@ async def _fetch_channels(settings: dict) -> list[dict]:
 
     headers = await get_backend_headers(settings)
 
-    all_items = []
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            page_url = url
-            while page_url:
-                resp = await client.get(page_url, headers=headers)
-                resp.raise_for_status()
-                data = resp.json()
+            if backend_type == "ecm":
+                all_items = await _paginate(client, url, headers)
+                return _parse_ecm_channels(all_items)
 
-                if isinstance(data, dict) and "results" in data:
-                    all_items.extend(data["results"])
-                    page_url = data.get("next")
-                elif isinstance(data, list):
-                    all_items.extend(data)
-                    page_url = None
-                else:
-                    all_items.extend(data) if isinstance(data, list) else None
-                    page_url = None
+            all_items, group_map = await asyncio.gather(
+                _paginate(client, url, headers),
+                _fetch_groups(client, backend_url, headers),
+            )
+
+            logo_ids = set()
+            for ch in all_items:
+                lid = ch.get("effective_logo_id") or ch.get("logo_id")
+                if lid:
+                    logo_ids.add(lid)
+
+            logo_map = await _fetch_logos_by_ids(client, backend_url, headers, logo_ids)
+
     except httpx.ConnectError:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Cannot connect to {backend_url}")
     except httpx.TimeoutException:
         raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="Backend request timed out")
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"Backend returned {e.response.status_code}")
-
-    if backend_type == "ecm":
-        return _parse_ecm_channels(all_items)
-
-    group_map = {}
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(f"{backend_url}/api/channels/groups/", headers=headers)
-            if resp.status_code == 200:
-                groups = resp.json()
-                if isinstance(groups, dict) and "results" in groups:
-                    groups = groups["results"]
-                for g in groups:
-                    if isinstance(g, dict) and "id" in g and "name" in g:
-                        group_map[g["id"]] = g["name"]
-    except Exception:
-        logger.warning("Could not fetch channel groups, group names may show as IDs")
-
-    logo_map = {}
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            page_url = f"{backend_url}/api/channels/logos/?page_size=200"
-            while page_url:
-                resp = await client.get(page_url, headers=headers)
-                if resp.status_code != 200:
-                    break
-                data = resp.json()
-                logos = data.get("results", data) if isinstance(data, dict) else data
-                for logo in logos:
-                    if isinstance(logo, dict) and logo.get("id") and logo.get("url"):
-                        logo_map[logo["id"]] = logo["url"]
-                page_url = data.get("next") if isinstance(data, dict) else None
-    except Exception:
-        logger.warning("Could not fetch logo URLs, falling back to cache URLs")
 
     return _parse_dispatcharr_channels(all_items, backend_url, group_map, logo_map)
 

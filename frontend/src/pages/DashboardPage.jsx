@@ -73,8 +73,8 @@ export default function DashboardPage() {
   const [selected, setSelected] = useState([]);
 
   useEffect(() => {
-    fetchChannels();
-  }, [fetchChannels]);
+    if (channels.length === 0) fetchChannels();
+  }, [channels.length, fetchChannels]);
 
   const handleSync = async () => {
     const success = await syncChannels();
@@ -275,6 +275,7 @@ export default function DashboardPage() {
                               h={32}
                               fit="contain"
                               fallbackSrc=""
+                              loading="lazy"
                               style={{ borderRadius: 4 }}
                             />
                           ) : (
