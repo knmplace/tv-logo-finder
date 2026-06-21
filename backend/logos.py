@@ -214,13 +214,18 @@ async def apply_logo(
             logo_data = logo_resp.json()
             logo_id = logo_data.get("id")
 
-            channel_payload = {"logo": logo_id}
+            if backend_type == "ecm":
+                channel_payload = {"logo": logo_id}
+            else:
+                channel_payload = {"logo_id": logo_id}
             patch_resp = await client.patch(channel_url, json=channel_payload, headers=headers)
+
+            logger.info("Logo created id=%s, PATCH %s with %s → %s", logo_id, channel_url, channel_payload, patch_resp.status_code)
 
             if patch_resp.status_code not in (200, 204):
                 return LogoApplyResult(
                     success=False,
-                    message=f"Logo created (id={logo_id}) but failed to assign to channel: HTTP {patch_resp.status_code}",
+                    message=f"Logo created (id={logo_id}) but failed to assign to channel: HTTP {patch_resp.status_code} - {patch_resp.text[:200]}",
                     logo_id=logo_id,
                 )
 
