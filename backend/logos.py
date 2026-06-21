@@ -102,27 +102,34 @@ def _clean_channel_name(name: str) -> str:
 
 def _fuzzy_score(query: str, filename: str) -> float:
     name_lower = filename.rsplit(".", 1)[0].lower().replace("_", " ").replace("-", " ")
+    name_compact = name_lower.replace(" ", "")
     query_lower = query.lower().strip()
+    query_compact = query_lower.replace(" ", "")
 
-    if query_lower == name_lower:
+    if query_compact == name_compact:
         return 1.0
-    if query_lower in name_lower:
+    if query_compact in name_compact:
         return 0.9
-    if name_lower.startswith(query_lower):
+    if name_compact.startswith(query_compact):
         return 0.85
 
     words = [w for w in query_lower.split() if w not in _NOISE_WORDS and len(w) > 1]
     if not words:
-        return SequenceMatcher(None, query_lower, name_lower).ratio()
+        ratio = SequenceMatcher(None, query_compact, name_compact).ratio()
+        return ratio if ratio >= 0.5 else 0.0
 
     if len(words) > 1:
-        matched = sum(1 for w in words if w in name_lower)
+        matched = sum(1 for w in words if w in name_compact)
         if matched == len(words):
             return 0.8 + (0.1 * matched / len(words))
-        if matched > 0:
-            return 0.4 * matched / len(words)
+        if matched == 1 and len(words) > 1:
+            return 0.0
 
-    return SequenceMatcher(None, query_lower, name_lower).ratio()
+    elif words[0] in name_compact:
+        return 0.7
+
+    ratio = SequenceMatcher(None, query_compact, name_compact).ratio()
+    return ratio if ratio >= 0.5 else 0.0
 
 
 @router.get("/search", response_model=list[LogoMatch])
@@ -143,7 +150,7 @@ async def search_logos(
     scored = []
     for entry in entries:
         score = _fuzzy_score(search_term, entry["filename"])
-        if score >= 0.3:
+        if score >= 0.4:
             scored.append((score, entry))
 
     scored.sort(key=lambda x: x[0], reverse=True)
