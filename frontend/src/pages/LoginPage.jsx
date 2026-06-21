@@ -49,6 +49,10 @@ export default function LoginPage() {
               TV Logo Finder
             </Title>
 
+            <Text size="xs" c="#a1a1aa" ta="center" mt={-8}>
+              v{APP_VERSION}
+            </Text>
+
             <Text size="sm" c="dimmed" ta="center">
               Sign in to manage your channel logos
             </Text>
@@ -95,9 +99,6 @@ export default function LoginPage() {
           </Stack>
         </form>
       </Paper>
-      <Text size="xs" c="dimmed" mt="md" style={{ opacity: 0.5 }}>
-        v{APP_VERSION}
-      </Text>
     </Center>
   );
 }
