@@ -191,8 +191,8 @@ export default function DashboardPage() {
                     <Table.Th c="#a1a1aa" w={50}>Logo</Table.Th>
                     <Table.Th c="#a1a1aa">Channel Name</Table.Th>
                     <Table.Th c="#a1a1aa">Existing Logo URL</Table.Th>
-                    <Table.Th c="#a1a1aa" w={80} ta="center">Group</Table.Th>
-                    <Table.Th c="#a1a1aa" w={90} ta="center">Status</Table.Th>
+                    <Table.Th c="#a1a1aa" w={140}>Group</Table.Th>
+                    <Table.Th c="#a1a1aa" w={100} ta="center">Status</Table.Th>
                     <Table.Th c="#a1a1aa" w={70} ta="center">Actions</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
@@ -234,7 +234,7 @@ export default function DashboardPage() {
                               href={ch.logo_url}
                               target="_blank"
                               size="xs"
-                              c="#71717a"
+                              c="#d4d4d8"
                               style={{
                                 display: 'block',
                                 maxWidth: 220,
@@ -250,7 +250,7 @@ export default function DashboardPage() {
                           <Text size="xs" c="#52525b">—</Text>
                         )}
                       </Table.Td>
-                      <Table.Td c="#d4d4d8" ta="center">{ch.group || '-'}</Table.Td>
+                      <Table.Td c="#d4d4d8">{ch.group || '-'}</Table.Td>
                       <Table.Td ta="center">
                         {ch.logo_url ? (
                           <Badge color="green" variant="light" size="sm">

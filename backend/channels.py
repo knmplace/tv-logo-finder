@@ -47,7 +47,7 @@ def _parse_ecm_channels(data: list[dict]) -> list[dict]:
     return channels
 
 
-def _parse_dispatcharr_channels(data: list[dict], backend_url: str) -> list[dict]:
+def _parse_dispatcharr_channels(data: list[dict], backend_url: str, group_map: dict[int, str] | None = None) -> list[dict]:
     channels = []
     for ch in data:
         logo_id = ch.get("effective_logo_id") or ch.get("logo_id")
@@ -58,8 +58,8 @@ def _parse_dispatcharr_channels(data: list[dict], backend_url: str) -> list[dict
         group = ch.get("group")
         if isinstance(group, dict):
             group_name = group.get("name")
-        elif ch.get("channel_group_id"):
-            group_name = str(ch["channel_group_id"])
+        elif ch.get("channel_group_id") and group_map:
+            group_name = group_map.get(ch["channel_group_id"])
         else:
             group_name = None
 
@@ -118,7 +118,22 @@ async def _fetch_channels(settings: dict) -> list[dict]:
 
     if backend_type == "ecm":
         return _parse_ecm_channels(all_items)
-    return _parse_dispatcharr_channels(all_items, backend_url)
+
+    group_map = {}
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(f"{backend_url}/api/channels/groups/", headers=headers)
+            if resp.status_code == 200:
+                groups = resp.json()
+                if isinstance(groups, dict) and "results" in groups:
+                    groups = groups["results"]
+                for g in groups:
+                    if isinstance(g, dict) and "id" in g and "name" in g:
+                        group_map[g["id"]] = g["name"]
+    except Exception:
+        logger.warning("Could not fetch channel groups, group names may show as IDs")
+
+    return _parse_dispatcharr_channels(all_items, backend_url, group_map)
 
 
 @router.get("", response_model=list[ChannelResponse])
