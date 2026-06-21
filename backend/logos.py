@@ -132,8 +132,10 @@ def _clean_channel_name(name: str) -> str:
     return " ".join(words).strip()
 
 
-def _fuzzy_score(query: str, filename: str) -> float:
+def _fuzzy_score(query: str, filename: str, strip_prefix: str = "") -> float:
     name_lower = filename.rsplit(".", 1)[0].lower().replace("_", " ").replace("-", " ")
+    if strip_prefix and name_lower.startswith(strip_prefix):
+        name_lower = name_lower[len(strip_prefix):].lstrip()
     query_lower = query.lower().strip()
 
     if query_lower == name_lower:
@@ -223,7 +225,7 @@ async def search_logos(
 
     scored = []
     for entry in filtered_entries:
-        score = _fuzzy_score(search_term, entry["filename"])
+        score = _fuzzy_score(search_term, entry["filename"], strip_prefix=logo_prefix or "")
         if score >= 0.3:
             scored.append((score, entry))
 
