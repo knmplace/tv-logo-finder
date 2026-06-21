@@ -124,13 +124,13 @@ export default function SearchPage() {
   }));
 
   const doSearch = useCallback(
-    async (searchQuery, pageNum = 1, append = false) => {
+    async (searchQuery, currentOffset = 0, append = false) => {
       if (!searchQuery.trim()) return;
       setLoading(true);
       setSearched(true);
       try {
         const limit = 30;
-        const url = `/api/logos/search?q=${encodeURIComponent(searchQuery)}&limit=${limit}`;
+        const url = `/api/logos/search?q=${encodeURIComponent(searchQuery)}&limit=${limit}&offset=${currentOffset}`;
         const logos = await api.get(url);
         if (append) {
           setResults((prev) => [...prev, ...logos]);
@@ -138,7 +138,7 @@ export default function SearchPage() {
           setResults(logos);
         }
         setHasMore(logos.length === limit);
-        setPage(pageNum);
+        setPage(currentOffset + logos.length);
       } catch (err) {
         notifications.show({
           title: 'Search failed',
@@ -164,7 +164,7 @@ export default function SearchPage() {
   };
 
   const handleLoadMore = () => {
-    doSearch(query, page + 1, true);
+    doSearch(query, page, true);
   };
 
   const handleApply = async () => {

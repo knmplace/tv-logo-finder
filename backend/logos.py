@@ -128,8 +128,8 @@ def _fuzzy_score(query: str, filename: str) -> float:
 @router.get("/search", response_model=list[LogoMatch])
 async def search_logos(
     q: str = Query(..., min_length=1, description="Search term"),
-    country: str = Query(None, description="Country code filter (e.g. USA, UK)"),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(30, ge=1, le=100),
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
     _user: User = Depends(get_current_user),
 ):
     entries = await _get_tree()
@@ -137,8 +137,8 @@ async def search_logos(
     cleaned = _clean_channel_name(q)
     search_term = cleaned if cleaned else q.strip()
 
-    logger.info("Logo search: raw=%r cleaned=%r country=%s (%d entries)",
-                q, search_term, country, len(entries))
+    logger.info("Logo search: raw=%r cleaned=%r offset=%d (%d entries)",
+                q, search_term, offset, len(entries))
 
     scored = []
     for entry in entries:
@@ -148,8 +148,10 @@ async def search_logos(
 
     scored.sort(key=lambda x: x[0], reverse=True)
 
+    page = scored[offset:offset + limit]
+
     results = []
-    for score, entry in scored[:limit]:
+    for score, entry in page:
         results.append(LogoMatch(
             filename=entry["filename"],
             path=entry["path"],
