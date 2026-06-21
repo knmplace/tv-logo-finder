@@ -90,7 +90,7 @@ _COUNTRY_PREFIX_RE = re.compile(
     re.IGNORECASE,
 )
 
-_NOISE_WORDS = {"east", "west", "hd", "uhd", "4k", "fhd", "sd"}
+_NOISE_WORDS = {"east", "west", "hd", "uhd", "4k", "fhd", "sd", "television", "network", "channel", "broadcasting", "tv"}
 
 
 def _clean_channel_name(name: str) -> str:
