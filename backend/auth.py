@@ -47,6 +47,7 @@ class UserResponse(BaseModel):
 class AuthStatus(BaseModel):
     setup_required: bool
     authenticated: bool
+    user: UserResponse | None = None
 
 
 def create_access_token(user_id: int, username: str) -> str:
@@ -91,17 +92,25 @@ async def auth_status(
     setup_required = user_count == 0
 
     authenticated = False
+    user_data = None
     if credentials:
         try:
             payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
             user_id = int(payload["sub"])
             result = await db.execute(select(User).where(User.id == user_id))
-            if result.scalar_one_or_none():
+            user = result.scalar_one_or_none()
+            if user:
                 authenticated = True
+                user_data = UserResponse(
+                    id=user.id,
+                    username=user.username,
+                    is_admin=user.is_admin,
+                    created_at=user.created_at,
+                )
         except (JWTError, KeyError, ValueError):
             pass
 
-    return AuthStatus(setup_required=setup_required, authenticated=authenticated)
+    return AuthStatus(setup_required=setup_required, authenticated=authenticated, user=user_data)
 
 
 @router.post("/setup", response_model=TokenResponse)
