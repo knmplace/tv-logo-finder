@@ -13,6 +13,7 @@ import {
 } from '@mantine/core';
 import { AlertCircle } from 'lucide-react';
 import useAuthStore from '../store/auth';
+import { APP_VERSION } from '../version';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -94,6 +95,9 @@ export default function LoginPage() {
           </Stack>
         </form>
       </Paper>
+      <Text size="xs" c="dimmed" mt="md" style={{ opacity: 0.5 }}>
+        v{APP_VERSION}
+      </Text>
     </Center>
   );
 }

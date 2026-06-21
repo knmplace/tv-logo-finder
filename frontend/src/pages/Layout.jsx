@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet, NavLink as RouterNavLink, useLocation } from 'react-router-dom';
 import {
   AppShell,
+  Anchor,
   Group,
   Title,
   NavLink,
@@ -10,6 +11,7 @@ import {
   Text,
   Box,
   Burger,
+  Divider,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -19,8 +21,10 @@ import {
   LogOut,
   User,
   ChevronDown,
+  Github,
 } from 'lucide-react';
 import useAuthStore from '../store/auth';
+import { APP_VERSION } from '../version';
 
 export default function Layout() {
   const location = useLocation();
@@ -41,6 +45,7 @@ export default function Layout() {
         breakpoint: 'sm',
         collapsed: { mobile: !opened },
       }}
+      footer={{ height: 40 }}
       padding="md"
     >
       <AppShell.Header
@@ -92,35 +97,69 @@ export default function Layout() {
 
       <AppShell.Navbar
         bg="#27272a"
-        style={{ borderRight: '1px solid #3f3f46' }}
+        style={{ borderRight: '1px solid #3f3f46', display: 'flex', flexDirection: 'column' }}
         p="sm"
       >
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const active = location.pathname === item.to;
-          return (
-            <NavLink
-              key={item.to}
-              component={RouterNavLink}
-              to={item.to}
-              label={item.label}
-              leftSection={<Icon size={18} />}
-              active={active}
-              onClick={close}
-              color="teal"
-              variant="light"
-              style={{
-                borderRadius: 6,
-                marginBottom: 4,
-              }}
-            />
-          );
-        })}
+        <Box style={{ flex: 1 }}>
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = location.pathname === item.to;
+            return (
+              <NavLink
+                key={item.to}
+                component={RouterNavLink}
+                to={item.to}
+                label={item.label}
+                leftSection={<Icon size={18} />}
+                active={active}
+                onClick={close}
+                color="teal"
+                variant="light"
+                style={{
+                  borderRadius: 6,
+                  marginBottom: 4,
+                }}
+              />
+            );
+          })}
+        </Box>
+        <Divider color="#3f3f46" mb="xs" />
+        <Text size="xs" c="dimmed" ta="center" pb="xs">
+          v{APP_VERSION}
+        </Text>
       </AppShell.Navbar>
 
       <AppShell.Main>
         <Outlet />
       </AppShell.Main>
+
+      <AppShell.Footer
+        bg="#1c1c1e"
+        style={{ borderTop: '1px solid #3f3f46' }}
+      >
+        <Group h="100%" px="md" justify="space-between">
+          <Text size="xs" c="dimmed">
+            {APP_VERSION}
+          </Text>
+          <Group gap="xs">
+            <Anchor
+              href="https://github.com/knmplace/tv-logo-finder"
+              target="_blank"
+              rel="noopener"
+              c="dimmed"
+              size="xs"
+              style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+            >
+              <Github size={12} />
+              GitHub
+            </Anchor>
+            <Text size="xs" c="dimmed">·</Text>
+            <Text size="xs" c="dimmed">
+              Logo data by jesmannstl/tvlogos
+            </Text>
+          </Group>
+        </Group>
+      </AppShell.Footer>
     </AppShell>
   );
 }

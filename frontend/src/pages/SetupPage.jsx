@@ -18,6 +18,7 @@ import {
 import { AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 import useAuthStore from '../store/auth';
 import api from '../api';
+import { APP_VERSION } from '../version';
 
 export default function SetupPage() {
   const [active, setActive] = useState(0);
@@ -273,6 +274,9 @@ export default function SetupPage() {
           </Stepper>
         </Stack>
       </Paper>
+      <Text size="xs" c="dimmed" mt="md" style={{ opacity: 0.5 }}>
+        v{APP_VERSION}
+      </Text>
     </Center>
   );
 }
