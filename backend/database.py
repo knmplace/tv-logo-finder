@@ -24,3 +24,14 @@ async def init_db():
     from models import Base
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await _migrate(conn)
+
+
+async def _migrate(conn):
+    from sqlalchemy import text
+    try:
+        await conn.execute(text(
+            "ALTER TABLE cached_channels ADD COLUMN cache_logo_url TEXT"
+        ))
+    except Exception:
+        pass
