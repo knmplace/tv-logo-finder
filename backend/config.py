@@ -13,7 +13,7 @@ from models import AppConfig, User
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
-VALID_KEYS = {"backend_type", "backend_url", "backend_api_key", "backend_username", "backend_password"}
+VALID_KEYS = {"backend_type", "backend_url", "backend_api_key", "backend_username", "backend_password", "backend_auth_method"}
 
 
 class SettingsResponse(BaseModel):
@@ -22,6 +22,7 @@ class SettingsResponse(BaseModel):
     backend_api_key: str | None = None
     backend_username: str | None = None
     backend_password: str | None = None
+    backend_auth_method: str | None = None
 
 
 class SettingsUpdate(BaseModel):
@@ -30,6 +31,7 @@ class SettingsUpdate(BaseModel):
     backend_api_key: str | None = None
     backend_username: str | None = None
     backend_password: str | None = None
+    backend_auth_method: str | None = None
 
 
 class ConnectionTestResult(BaseModel):
@@ -39,26 +41,27 @@ class ConnectionTestResult(BaseModel):
 
 async def get_backend_headers(settings: dict) -> dict[str, str]:
     headers = {"Content-Type": "application/json"}
-    backend_type = settings.get("backend_type")
+    auth_method = settings.get("backend_auth_method", "api_key")
+    backend_url = settings.get("backend_url", "")
 
-    if backend_type == "ecm":
-        if settings.get("backend_api_key"):
-            headers["Authorization"] = f"Bearer {settings['backend_api_key']}"
-    elif backend_type == "dispatcharr":
+    if auth_method == "api_key" and settings.get("backend_api_key"):
+        headers["X-API-Key"] = settings["backend_api_key"]
+    elif auth_method == "password":
         username = settings.get("backend_username")
         password = settings.get("backend_password")
-        backend_url = settings.get("backend_url")
         if username and password and backend_url:
             try:
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     resp = await client.post(
-                        f"{backend_url}/api/token/",
+                        f"{backend_url}/api/accounts/token/",
                         json={"username": username, "password": password},
                     )
                     if resp.status_code == 200:
                         token = resp.json().get("access")
                         if token:
                             headers["Authorization"] = f"Bearer {token}"
+                    else:
+                        logger.warning("Dispatcharr auth returned %s", resp.status_code)
             except Exception:
                 logger.warning("Failed to authenticate with Dispatcharr")
 
@@ -135,8 +138,10 @@ async def test_connection(
 
     if backend_type == "ecm":
         test_url = f"{backend_url}/api/channels/"
-    else:
+    elif backend_type == "dispatcharr":
         test_url = f"{backend_url}/api/channels/channels/"
+    else:
+        return ConnectionTestResult(success=False, message=f"Unknown backend type: {backend_type}")
 
     headers = await get_backend_headers(settings)
 

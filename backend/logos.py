@@ -146,17 +146,13 @@ async def apply_logo(
             logo_payload = {"name": request.logo_name, "url": request.logo_url}
 
             if backend_type == "ecm":
-                logo_resp = await client.post(
-                    f"{backend_url}/api/channels/logos/",
-                    json=logo_payload,
-                    headers=headers,
-                )
+                logo_url = f"{backend_url}/api/channels/logos/"
+                channel_url = f"{backend_url}/api/channels/{request.channel_id}/"
             else:
-                logo_resp = await client.post(
-                    f"{backend_url}/api/channels/logos/",
-                    json=logo_payload,
-                    headers=headers,
-                )
+                logo_url = f"{backend_url}/api/channels/logos/"
+                channel_url = f"{backend_url}/api/channels/channels/{request.channel_id}/"
+
+            logo_resp = await client.post(logo_url, json=logo_payload, headers=headers)
 
             if logo_resp.status_code not in (200, 201):
                 return LogoApplyResult(
@@ -168,11 +164,7 @@ async def apply_logo(
             logo_id = logo_data.get("id")
 
             channel_payload = {"logo": logo_id}
-            patch_resp = await client.patch(
-                f"{backend_url}/api/channels/{request.channel_id}/",
-                json=channel_payload,
-                headers=headers,
-            )
+            patch_resp = await client.patch(channel_url, json=channel_payload, headers=headers)
 
             if patch_resp.status_code not in (200, 204):
                 return LogoApplyResult(

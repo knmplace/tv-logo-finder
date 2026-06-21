@@ -13,6 +13,8 @@ import {
   Loader,
   Center,
   Divider,
+  Box,
+  SegmentedControl,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { Settings, CheckCircle, XCircle, Plug } from 'lucide-react';
@@ -32,6 +34,7 @@ export default function SettingsPage() {
 
   const [backendType, setBackendType] = useState('');
   const [backendUrl, setBackendUrl] = useState('');
+  const [authMethod, setAuthMethod] = useState('api_key');
   const [apiKey, setApiKey] = useState('');
   const [backendUsername, setBackendUsername] = useState('');
   const [backendPassword, setBackendPassword] = useState('');
@@ -45,6 +48,7 @@ export default function SettingsPage() {
     if (settings) {
       setBackendType(settings.backend_type || 'ecm');
       setBackendUrl(settings.backend_url || '');
+      setAuthMethod(settings.backend_auth_method || 'api_key');
       setApiKey(settings.backend_api_key || '');
       setBackendUsername(settings.backend_username || '');
       setBackendPassword(settings.backend_password || '');
@@ -53,8 +57,12 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     setSaving(true);
-    const payload = { backend_type: backendType, backend_url: backendUrl };
-    if (backendType === 'ecm') {
+    const payload = {
+      backend_type: backendType,
+      backend_url: backendUrl,
+      backend_auth_method: authMethod,
+    };
+    if (authMethod === 'api_key') {
       payload.backend_api_key = apiKey || undefined;
     } else {
       payload.backend_username = backendUsername || undefined;
@@ -139,10 +147,28 @@ export default function SettingsPage() {
             required
           />
 
-          {backendType === 'ecm' ? (
+          <Box>
+            <Text size="sm" fw={500} mb={4}>Authentication Method</Text>
+            <SegmentedControl
+              value={authMethod}
+              onChange={setAuthMethod}
+              data={[
+                { label: 'API Key', value: 'api_key' },
+                { label: 'Username & Password', value: 'password' },
+              ]}
+              color="teal"
+              fullWidth
+            />
+            <Text size="xs" c="dimmed" mt={4}>
+              {authMethod === 'api_key'
+                ? 'Recommended — generate a key in Dispatcharr under Account → API Keys'
+                : 'Use your Dispatcharr login credentials'}
+            </Text>
+          </Box>
+
+          {authMethod === 'api_key' ? (
             <PasswordInput
               label="Dispatcharr API Key"
-              description="Required — found in your Dispatcharr settings"
               placeholder="Dispatcharr API key"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
@@ -152,7 +178,6 @@ export default function SettingsPage() {
             <>
               <TextInput
                 label="Dispatcharr Username"
-                description="Required — your Dispatcharr login"
                 placeholder="Username"
                 value={backendUsername}
                 onChange={(e) => setBackendUsername(e.target.value)}
