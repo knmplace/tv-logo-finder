@@ -27,8 +27,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="TV Logo Finder",
-    version="1.0.0",
+    title="TV Logo Finder (Beta)",
+    version="1.0.0-beta.1",
     lifespan=lifespan,
 )
 

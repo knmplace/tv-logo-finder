@@ -6,6 +6,14 @@ COPY frontend/ .
 RUN npm run build
 
 FROM python:3.12-slim
+
+LABEL org.opencontainers.image.title="TV Logo Finder (Beta)"
+LABEL org.opencontainers.image.description="Search and assign TV channel logos for Dispatcharr and ECM"
+LABEL org.opencontainers.image.source="https://github.com/knmplace/tv-logo-finder"
+LABEL org.opencontainers.image.url="https://github.com/knmplace/tv-logo-finder"
+LABEL org.opencontainers.image.vendor="knmplace"
+LABEL org.opencontainers.image.licenses="MIT"
+
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends nginx && \

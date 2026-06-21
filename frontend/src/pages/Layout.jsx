@@ -61,6 +61,9 @@ export default function Layout() {
             <Title order={4} c="white" fw={600}>
               TV Logo Finder
             </Title>
+            <Text size="xs" c="dimmed" style={{ opacity: 0.6 }}>
+              beta
+            </Text>
           </Group>
 
           <Menu shadow="md" width={180} position="bottom-end">
