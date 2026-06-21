@@ -17,9 +17,10 @@ import {
   Affix,
   Transition,
   ActionIcon,
+  Alert,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { Search, Check, X, Image as ImageIcon } from 'lucide-react';
+import { Search, Check, X, Image as ImageIcon, AlertTriangle } from 'lucide-react';
 import api from '../api';
 import useChannelStore from '../store/channels';
 
@@ -204,24 +205,36 @@ export default function SearchPage() {
       </Title>
 
       {channelFromParam && (
-        <Paper
-          p="sm"
-          radius="md"
-          withBorder
-          style={{ borderColor: '#3f3f46' }}
-        >
-          <Group gap="sm">
-            <Text size="sm" c="dimmed">
-              Searching for:
-            </Text>
-            <Text size="sm" c="white" fw={600}>
-              {channelFromParam.channel_number
-                ? `#${channelFromParam.channel_number} - `
-                : ''}
-              {channelFromParam.name}
-            </Text>
-          </Group>
-        </Paper>
+        <Stack gap="xs">
+          <Paper
+            p="sm"
+            radius="md"
+            withBorder
+            style={{ borderColor: '#3f3f46' }}
+          >
+            <Group gap="sm">
+              <Text size="sm" c="#a1a1aa">
+                Applying to:
+              </Text>
+              <Text size="sm" c="white" fw={600}>
+                {channelFromParam.channel_number
+                  ? `#${channelFromParam.channel_number} - `
+                  : ''}
+                {channelFromParam.name}
+              </Text>
+            </Group>
+          </Paper>
+          {query.trim().toLowerCase() !== queryParam.toLowerCase() && searched && (
+            <Alert
+              color="yellow"
+              icon={<AlertTriangle size={16} />}
+              variant="light"
+            >
+              You searched for a different term. The selected logo will still be applied to{' '}
+              <strong>{channelFromParam.name}</strong>.
+            </Alert>
+          )}
+        </Stack>
       )}
 
       <form onSubmit={handleSearch}>

@@ -1,5 +1,6 @@
 import logging
 import time
+import re
 from difflib import SequenceMatcher
 
 import httpx
@@ -81,10 +82,27 @@ async def _get_tree() -> list[dict]:
     return entries
 
 
+_COUNTRY_PREFIX_RE = re.compile(
+    r'^(?:'
+    r'[A-Z]{2,3}\s*[:|]\s*'  # "USA|", "UK:", "US: ", "CA|"
+    r'|(?:USA?|UK|CA|AU|NZ|FR|DE|IT|ES|MX|BR|IN|JP)\s+'  # "USA ", "UK ", "CA "
+    r')',
+    re.IGNORECASE,
+)
+
+_NOISE_WORDS = {"east", "west", "hd", "uhd", "4k", "fhd", "sd"}
+
+
+def _clean_channel_name(name: str) -> str:
+    cleaned = _COUNTRY_PREFIX_RE.sub("", name.strip())
+    cleaned = re.sub(r'[^\w\s]', ' ', cleaned)
+    words = [w for w in cleaned.split() if w.lower() not in _NOISE_WORDS]
+    return " ".join(words).strip()
+
+
 def _fuzzy_score(query: str, filename: str) -> float:
     name_lower = filename.rsplit(".", 1)[0].lower().replace("_", " ").replace("-", " ")
     query_lower = query.lower().strip()
-    words = query_lower.split()
 
     if query_lower == name_lower:
         return 1.0
@@ -93,13 +111,16 @@ def _fuzzy_score(query: str, filename: str) -> float:
     if name_lower.startswith(query_lower):
         return 0.85
 
+    words = [w for w in query_lower.split() if w not in _NOISE_WORDS and len(w) > 1]
+    if not words:
+        return SequenceMatcher(None, query_lower, name_lower).ratio()
+
     if len(words) > 1:
         matched = sum(1 for w in words if w in name_lower)
         if matched == len(words):
             return 0.8 + (0.1 * matched / len(words))
-        if matched == 0:
-            return 0.0
-        return 0.3 * matched / len(words)
+        if matched > 0:
+            return 0.4 * matched / len(words)
 
     return SequenceMatcher(None, query_lower, name_lower).ratio()
 
@@ -112,9 +133,13 @@ async def search_logos(
 ):
     entries = await _get_tree()
 
+    cleaned = _clean_channel_name(q)
+    search_term = cleaned if cleaned else q.strip()
+    logger.info("Logo search: raw=%r cleaned=%r", q, search_term)
+
     scored = []
     for entry in entries:
-        score = _fuzzy_score(q, entry["filename"])
+        score = _fuzzy_score(search_term, entry["filename"])
         if score >= 0.3:
             scored.append((score, entry))
 
