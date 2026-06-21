@@ -237,7 +237,6 @@ export default function DashboardPage() {
                               c="#d4d4d8"
                               style={{
                                 display: 'block',
-                                maxWidth: 220,
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
                                 whiteSpace: 'nowrap',
