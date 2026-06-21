@@ -17,6 +17,8 @@ import {
   Image,
   Loader,
   Center,
+  Tooltip,
+  Anchor,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -181,16 +183,17 @@ export default function DashboardPage() {
               </Text>
             </Center>
           ) : (
-            <Table.ScrollContainer minWidth={600}>
+            <Table.ScrollContainer minWidth={900}>
               <Table striped highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
-                    <Table.Th c="#a1a1aa">#</Table.Th>
-                    <Table.Th c="#a1a1aa">Logo</Table.Th>
+                    <Table.Th c="#a1a1aa" w={50}>#</Table.Th>
+                    <Table.Th c="#a1a1aa" w={50}>Logo</Table.Th>
                     <Table.Th c="#a1a1aa">Channel Name</Table.Th>
-                    <Table.Th c="#a1a1aa">Group</Table.Th>
-                    <Table.Th c="#a1a1aa">Status</Table.Th>
-                    <Table.Th c="#a1a1aa">Actions</Table.Th>
+                    <Table.Th c="#a1a1aa">Existing Logo URL</Table.Th>
+                    <Table.Th c="#a1a1aa" w={80} ta="center">Group</Table.Th>
+                    <Table.Th c="#a1a1aa" w={90} ta="center">Status</Table.Th>
+                    <Table.Th c="#a1a1aa" w={70} ta="center">Actions</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -224,8 +227,31 @@ export default function DashboardPage() {
                         )}
                       </Table.Td>
                       <Table.Td c="white">{ch.name}</Table.Td>
-                      <Table.Td c="#d4d4d8">{ch.group || '-'}</Table.Td>
                       <Table.Td>
+                        {ch.logo_url ? (
+                          <Tooltip label={ch.logo_url} multiline w={400} withArrow>
+                            <Anchor
+                              href={ch.logo_url}
+                              target="_blank"
+                              size="xs"
+                              c="#71717a"
+                              style={{
+                                display: 'block',
+                                maxWidth: 220,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {ch.logo_url}
+                            </Anchor>
+                          </Tooltip>
+                        ) : (
+                          <Text size="xs" c="#52525b">—</Text>
+                        )}
+                      </Table.Td>
+                      <Table.Td c="#d4d4d8" ta="center">{ch.group || '-'}</Table.Td>
+                      <Table.Td ta="center">
                         {ch.logo_url ? (
                           <Badge color="green" variant="light" size="sm">
                             Has Logo
@@ -236,7 +262,7 @@ export default function DashboardPage() {
                           </Badge>
                         )}
                       </Table.Td>
-                      <Table.Td>
+                      <Table.Td ta="center">
                         <ActionIcon
                           variant="light"
                           color="teal"
