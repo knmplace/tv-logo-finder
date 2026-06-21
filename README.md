@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo_finder.jpg" alt="TV Logo Finder" width="300" />
+</p>
+
 # TV Logo Finder
 
 Search and assign TV channel logos from a comprehensive database of 54,000+ logos. Works with [Dispatcharr](https://github.com/Dispatcharr/Dispatcharr) and [ECM (Enhanced Channel Manager)](https://github.com/Dispatcharr/Dispatcharr).
