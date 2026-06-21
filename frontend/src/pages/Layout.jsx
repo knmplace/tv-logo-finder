@@ -124,7 +124,7 @@ export default function Layout() {
           })}
         </Box>
         <Divider color="#3f3f46" mb="xs" />
-        <Text size="xs" c="dimmed" ta="center" pb="xs">
+        <Text size="xs" c="#a1a1aa" ta="center" pb="xs">
           v{APP_VERSION}
         </Text>
       </AppShell.Navbar>
@@ -138,7 +138,7 @@ export default function Layout() {
         style={{ borderTop: '1px solid #3f3f46' }}
       >
         <Group h="100%" px="md" justify="space-between">
-          <Text size="xs" c="dimmed">
+          <Text size="xs" c="#a1a1aa">
             {APP_VERSION}
           </Text>
           <Group gap="xs">
@@ -146,15 +146,15 @@ export default function Layout() {
               href="https://github.com/knmplace/tv-logo-finder"
               target="_blank"
               rel="noopener"
-              c="dimmed"
+              c="#a1a1aa"
               size="xs"
               style={{ display: 'flex', alignItems: 'center', gap: 4 }}
             >
               <Github size={12} />
               GitHub
             </Anchor>
-            <Text size="xs" c="dimmed">·</Text>
-            <Text size="xs" c="dimmed">
+            <Text size="xs" c="#a1a1aa">·</Text>
+            <Text size="xs" c="#a1a1aa">
               Logo data by jesmannstl/tvlogos
             </Text>
           </Group>
