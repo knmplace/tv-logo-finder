@@ -21,6 +21,7 @@ const useChannelStore = create((set, get) => ({
           channel_number: ch.number,
           group: ch.group_name,
           logo_url: ch.current_logo_url,
+          cache_logo_url: ch.cache_logo_url,
           logo_id: ch.logo_id,
         })),
         lastSynced: synced,

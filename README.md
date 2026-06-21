@@ -11,7 +11,9 @@ Search and assign TV channel logos from a comprehensive database of 54,000+ logo
 - **Visual Logo Search** — Search 54,000+ channel logos with instant thumbnail previews
 - **Smart Fuzzy Matching** — Intelligent search strips noise words (country prefixes, "Television", "Network", "HD", "West/East") to find the actual channel name
 - **One-Click Assignment** — Select a logo and apply it directly to your channel in Dispatcharr or ECM
+- **Batch Logo Search** — Select up to 5 channels from the dashboard and search logos for all of them in a tabbed interface
 - **Channel Dashboard** — See all channels with logo status, existing logo URLs, and group names at a glance
+- **Update Notifications** — Built-in update checker alerts you when a new version is available, with separate stable and beta channels
 - **Offset Pagination** — Load More button fetches additional results without duplicates
 - **Collapsible Sidebar** — Toggle the navigation panel to maximize screen space
 - **Dual Backend Support** — Connect to ECM or Dispatcharr with API key or username/password auth
@@ -30,7 +32,7 @@ services:
     image: ghcr.io/knmplace/tv-logo-finder:latest
     container_name: tv-logo-finder
     ports:
-      - "6102:6102"
+      - "6102:80"
     volumes:
       - tv-logo-finder-data:/data
     environment:
@@ -52,7 +54,7 @@ Open `http://your-server:6102` in your browser.
 ```bash
 docker run -d \
   --name tv-logo-finder \
-  -p 6102:6102 \
+  -p 6102:80 \
   -v tv-logo-finder-data:/data \
   -e JWT_SECRET=your-random-secret-key-here \
   --restart unless-stopped \
@@ -67,7 +69,7 @@ cd tv-logo-finder
 docker build -t tv-logo-finder:local .
 docker run -d \
   --name tv-logo-finder \
-  -p 6102:6102 \
+  -p 6102:80 \
   -v tv-logo-finder-data:/data \
   -e JWT_SECRET=your-random-secret-key-here \
   --restart unless-stopped \
@@ -149,6 +151,14 @@ Use the filter tabs (All / Missing Logo / Has Logo) and search box to narrow dow
 6. The target channel is pre-selected in the dropdown at the bottom
 7. Click **Apply Logo** to assign it
 
+**Batch search (up to 5 channels at once):**
+1. Use the **checkboxes** on the left side of the dashboard to select up to 5 channels
+2. A bottom bar appears showing your selected channels
+3. Click **Search Logos for Selected**
+4. You'll see a **tabbed interface** — one tab per channel, each with its own search results
+5. Search and apply logos independently for each channel
+6. A green checkmark appears on the tab after you apply a logo
+
 **From Logo Search directly:**
 1. Go to **Logo Search** in the sidebar
 2. Type a channel name (e.g., "ESPN", "HBO", "Hallmark")
@@ -205,7 +215,7 @@ docker build -t tv-logo-finder:local .
 docker stop tv-logo-finder && docker rm tv-logo-finder
 docker run -d \
   --name tv-logo-finder \
-  -p 6102:6102 \
+  -p 6102:80 \
   -v tv-logo-finder-data:/data \
   -e JWT_SECRET=your-random-secret-key-here \
   --restart unless-stopped \
@@ -259,6 +269,7 @@ The frontend dev server proxies API requests to `localhost:6102`.
 | `/api/channels/sync` | POST | Yes | Sync channels from backend |
 | `/api/logos/search` | GET | Yes | Search logo database (`q`, `limit`, `offset` params) |
 | `/api/logos/apply` | POST | Yes | Assign logo to channel |
+| `/api/updates/check` | GET | Yes | Check for new releases (`include_beta` param) |
 
 ---
 

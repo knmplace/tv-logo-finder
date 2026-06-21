@@ -12,7 +12,7 @@ from models import User
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/updates", tags=["updates"])
 
-CURRENT_VERSION = "1.0.0"
+CURRENT_VERSION = "1.0.1"
 GITHUB_RELEASES_URL = "https://api.github.com/repos/knmplace/tv-logo-finder/releases"
 
 _update_cache: dict = {"data": None, "fetched_at": 0.0}

@@ -270,7 +270,7 @@ export default function DashboardPage() {
                         <Table.Td>
                           {ch.logo_url ? (
                             <Image
-                              src={ch.logo_url}
+                              src={ch.cache_logo_url || ch.logo_url}
                               w={32}
                               h={32}
                               fit="contain"

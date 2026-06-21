@@ -22,6 +22,7 @@ class ChannelResponse(BaseModel):
     number: int | None
     group_name: str | None
     current_logo_url: str | None
+    cache_logo_url: str | None
     logo_id: int | None
     synced_at: datetime
 
@@ -42,6 +43,7 @@ def _parse_ecm_channels(data: list[dict]) -> list[dict]:
             "number": ch.get("channel_number"),
             "group_name": group.get("name"),
             "current_logo_url": logo.get("url"),
+            "cache_logo_url": logo.get("url"),
             "logo_id": logo.get("id"),
         })
     return channels
@@ -52,11 +54,13 @@ def _parse_dispatcharr_channels(data: list[dict], backend_url: str, group_map: d
     for ch in data:
         logo_id = ch.get("effective_logo_id") or ch.get("logo_id")
         logo_url = None
+        cache_url = None
         if logo_id:
+            cache_url = f"{backend_url}/api/channels/logos/{logo_id}/cache/"
             if logo_map and logo_id in logo_map:
                 logo_url = logo_map[logo_id]
             else:
-                logo_url = f"{backend_url}/api/channels/logos/{logo_id}/cache/"
+                logo_url = cache_url
 
         group = ch.get("group")
         if isinstance(group, dict):
@@ -72,6 +76,7 @@ def _parse_dispatcharr_channels(data: list[dict], backend_url: str, group_map: d
             "number": ch.get("effective_channel_number") or ch.get("channel_number"),
             "group_name": group_name,
             "current_logo_url": logo_url,
+            "cache_logo_url": cache_url,
             "logo_id": logo_id,
         })
     return channels
@@ -170,6 +175,7 @@ async def list_channels(
             number=ch.number,
             group_name=ch.group_name,
             current_logo_url=ch.current_logo_url,
+            cache_logo_url=ch.cache_logo_url,
             logo_id=ch.logo_id,
             synced_at=ch.synced_at,
         )
@@ -196,6 +202,7 @@ async def sync_channels(
             number=ch["number"],
             group_name=ch["group_name"],
             current_logo_url=ch["current_logo_url"],
+            cache_logo_url=ch.get("cache_logo_url"),
             logo_id=ch["logo_id"],
             synced_at=now,
         ))

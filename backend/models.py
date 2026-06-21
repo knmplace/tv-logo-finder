@@ -33,5 +33,6 @@ class CachedChannel(Base):
     number: Mapped[int | None] = mapped_column(Integer, nullable=True)
     group_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     current_logo_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cache_logo_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     logo_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     synced_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
