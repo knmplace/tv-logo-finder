@@ -12,6 +12,8 @@ import {
   Box,
   Burger,
   Divider,
+  ActionIcon,
+  Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -22,6 +24,8 @@ import {
   User,
   ChevronDown,
   Github,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import useAuthStore from '../store/auth';
 import { APP_VERSION } from '../version';
@@ -29,7 +33,8 @@ import { APP_VERSION } from '../version';
 export default function Layout() {
   const location = useLocation();
   const { user, logout } = useAuthStore();
-  const [opened, { toggle, close }] = useDisclosure(false);
+  const [mobileOpened, { toggle: toggleMobile, close: closeMobile }] = useDisclosure(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
 
   const navItems = [
     { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -43,7 +48,7 @@ export default function Layout() {
       navbar={{
         width: 240,
         breakpoint: 'sm',
-        collapsed: { mobile: !opened },
+        collapsed: { mobile: !mobileOpened, desktop: desktopCollapsed },
       }}
       footer={{ height: 40 }}
       padding="md"
@@ -55,12 +60,23 @@ export default function Layout() {
         <Group h="100%" px="md" justify="space-between">
           <Group gap="sm">
             <Burger
-              opened={opened}
-              onClick={toggle}
+              opened={mobileOpened}
+              onClick={toggleMobile}
               hiddenFrom="sm"
               size="sm"
               color="white"
             />
+            <Tooltip label={desktopCollapsed ? 'Show sidebar' : 'Hide sidebar'} position="right">
+              <ActionIcon
+                variant="subtle"
+                color="gray"
+                onClick={() => setDesktopCollapsed((v) => !v)}
+                visibleFrom="sm"
+                size="sm"
+              >
+                {desktopCollapsed ? <PanelLeftOpen size={18} color="#a1a1aa" /> : <PanelLeftClose size={18} color="#a1a1aa" />}
+              </ActionIcon>
+            </Tooltip>
             <img src="/logo.jpg" alt="TV Logo Finder" style={{ width: 32, height: 32, borderRadius: 6 }} />
             <Title order={4} c="white" fw={600}>
               TV Logo Finder
@@ -112,7 +128,7 @@ export default function Layout() {
                 label={item.label}
                 leftSection={<Icon size={18} />}
                 active={active}
-                onClick={close}
+                onClick={closeMobile}
                 color="teal"
                 variant="light"
                 style={{
