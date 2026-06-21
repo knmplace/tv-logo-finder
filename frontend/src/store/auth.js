@@ -29,10 +29,10 @@ const useAuthStore = create((set, get) => ({
     set({ error: null });
     try {
       const data = await api.post('/api/auth/login', { username, password });
-      localStorage.setItem(TOKEN_KEY, data.token);
+      const token = data.access_token;
+      localStorage.setItem(TOKEN_KEY, token);
       set({
-        token: data.token,
-        user: data.user,
+        token,
         isAuthenticated: true,
         error: null,
       });
@@ -46,13 +46,19 @@ const useAuthStore = create((set, get) => ({
   setup: async (username, password) => {
     set({ error: null });
     try {
-      await api.post('/api/auth/setup', { username, password });
-      set({ setupRequired: false });
+      const data = await api.post('/api/auth/setup', { username, password });
+      const token = data.access_token;
+      localStorage.setItem(TOKEN_KEY, token);
+      set({ token, isAuthenticated: true });
       return true;
     } catch (err) {
       set({ error: err.message });
       return false;
     }
+  },
+
+  finishSetup: () => {
+    set({ setupRequired: false });
   },
 
   logout: () => {

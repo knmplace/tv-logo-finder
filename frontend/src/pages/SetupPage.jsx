@@ -22,7 +22,7 @@ import api from '../api';
 export default function SetupPage() {
   const [active, setActive] = useState(0);
   const [loading, setLoading] = useState(false);
-  const { setup, error, clearError } = useAuthStore();
+  const { setup, finishSetup, error, clearError } = useAuthStore();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -238,10 +238,10 @@ export default function SetupPage() {
                 </Text>
                 <Button
                   color="teal"
-                  onClick={() => window.location.reload()}
+                  onClick={() => finishSetup()}
                   fullWidth
                 >
-                  Go to Login
+                  Get Started
                 </Button>
               </Stack>
             </Stepper.Step>
