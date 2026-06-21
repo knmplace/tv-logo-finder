@@ -108,9 +108,9 @@ def _fuzzy_score(query: str, filename: str) -> float:
 
     if query_compact == name_compact:
         return 1.0
-    if query_compact in name_compact:
-        return 0.9
     if name_compact.startswith(query_compact):
+        return 0.9
+    if len(query_compact) > 4 and query_compact in name_compact:
         return 0.85
 
     words = [w for w in query_lower.split() if w not in _NOISE_WORDS and len(w) > 1]
@@ -118,14 +118,19 @@ def _fuzzy_score(query: str, filename: str) -> float:
         ratio = SequenceMatcher(None, query_compact, name_compact).ratio()
         return ratio if ratio >= 0.5 else 0.0
 
+    def _word_in_name(w, name):
+        if len(w) <= 4:
+            return name.startswith(w)
+        return w in name
+
     if len(words) > 1:
-        matched = sum(1 for w in words if w in name_compact)
+        matched = sum(1 for w in words if _word_in_name(w, name_compact))
         if matched == len(words):
             return 0.8 + (0.1 * matched / len(words))
         if matched == 1 and len(words) > 1:
             return 0.0
 
-    elif words[0] in name_compact:
+    elif _word_in_name(words[0], name_compact):
         return 0.7
 
     ratio = SequenceMatcher(None, query_compact, name_compact).ratio()
