@@ -36,6 +36,7 @@ const useAuthStore = create((set, get) => ({
         isAuthenticated: true,
         error: null,
       });
+      await get().checkStatus();
       return true;
     } catch (err) {
       set({ error: err.message });

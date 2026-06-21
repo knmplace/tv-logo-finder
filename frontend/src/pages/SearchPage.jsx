@@ -18,6 +18,8 @@ import {
   Transition,
   ActionIcon,
   Alert,
+  Tabs,
+  Badge,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { Search, Check, X, Image as ImageIcon, AlertTriangle } from 'lucide-react';
@@ -98,30 +100,17 @@ function LogoCard({ logo, selected, onSelect }) {
   );
 }
 
-export default function SearchPage() {
-  const [searchParams] = useSearchParams();
-  const channelIdParam = searchParams.get('channel');
-  const queryParam = searchParams.get('q') || '';
-
-  const { channels, updateChannelLogo } = useChannelStore();
-  const [query, setQuery] = useState(queryParam);
+function ChannelSearchPanel({ channel, channelOptions, allChannels, onLogoApplied, defaultQuery }) {
+  const { updateChannelLogo } = useChannelStore();
+  const [query, setQuery] = useState(defaultQuery || channel?.name || '');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [selectedLogo, setSelectedLogo] = useState(null);
-  const [selectedChannelId, setSelectedChannelId] = useState(channelIdParam || '');
+  const [selectedChannelId, setSelectedChannelId] = useState(channel?.id?.toString() || '');
   const [applying, setApplying] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
-
-  const channelFromParam = channels.find(
-    (ch) => ch.id?.toString() === channelIdParam
-  );
-
-  const channelOptions = channels.map((ch) => ({
-    value: ch.id.toString(),
-    label: `${ch.channel_number ? ch.channel_number + ' - ' : ''}${ch.name}`,
-  }));
 
   const doSearch = useCallback(
     async (searchQuery, currentOffset = 0, append = false) => {
@@ -152,10 +141,11 @@ export default function SearchPage() {
   );
 
   useEffect(() => {
-    if (queryParam) {
-      doSearch(queryParam);
+    const initialQuery = defaultQuery || channel?.name;
+    if (initialQuery) {
+      doSearch(initialQuery);
     }
-  }, []);
+  }, [channel?.id]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -177,7 +167,7 @@ export default function SearchPage() {
         logo_name: selectedLogo.filename,
       });
       updateChannelLogo(parseInt(selectedChannelId, 10), selectedLogo.url, selectedLogo.filename);
-      const ch = channels.find(
+      const ch = allChannels.find(
         (c) => c.id.toString() === selectedChannelId
       );
       notifications.show({
@@ -186,6 +176,7 @@ export default function SearchPage() {
         color: 'teal',
       });
       setSelectedLogo(null);
+      if (onLogoApplied) onLogoApplied(selectedChannelId);
     } catch (err) {
       notifications.show({
         title: 'Failed to apply logo',
@@ -197,42 +188,17 @@ export default function SearchPage() {
   };
 
   return (
-    <Stack gap="lg" pb={selectedLogo ? 100 : 0}>
-      <Title order={3} c="white">
-        Logo Search
-      </Title>
-
-      {channelFromParam && (
-        <Stack gap="xs">
-          <Paper
-            p="sm"
-            radius="md"
-            withBorder
-            style={{ borderColor: '#3f3f46' }}
-          >
-            <Group gap="sm">
-              <Text size="sm" c="#a1a1aa">
-                Applying to:
-              </Text>
-              <Text size="sm" c="white" fw={600}>
-                {channelFromParam.channel_number
-                  ? `#${channelFromParam.channel_number} - `
-                  : ''}
-                {channelFromParam.name}
-              </Text>
-            </Group>
-          </Paper>
-          {query.trim().toLowerCase() !== queryParam.toLowerCase() && searched && (
-            <Alert
-              color="yellow"
-              icon={<AlertTriangle size={16} />}
-              variant="light"
-            >
-              You searched for a different term. The selected logo will still be applied to{' '}
-              <strong>{channelFromParam.name}</strong>.
-            </Alert>
-          )}
-        </Stack>
+    <Stack gap="md" pb={selectedLogo ? 100 : 0}>
+      {channel && (
+        <Paper p="sm" radius="md" withBorder style={{ borderColor: '#3f3f46' }}>
+          <Group gap="sm">
+            <Text size="sm" c="#a1a1aa">Applying to:</Text>
+            <Text size="sm" c="white" fw={600}>
+              {channel.channel_number ? `#${channel.channel_number} - ` : ''}
+              {channel.name}
+            </Text>
+          </Group>
+        </Paper>
       )}
 
       <form onSubmit={handleSearch}>
@@ -260,9 +226,7 @@ export default function SearchPage() {
           <Stack align="center" gap="sm">
             <ImageIcon size={48} color="#3f3f46" />
             <Text c="dimmed">No logos found for "{query}"</Text>
-            <Text size="sm" c="dimmed">
-              Try a different search term or a shorter name
-            </Text>
+            <Text size="sm" c="dimmed">Try a different search term or a shorter name</Text>
           </Stack>
         </Center>
       ) : results.length > 0 ? (
@@ -336,24 +300,24 @@ export default function SearchPage() {
                         <Text size="sm" c="white" fw={500} lineClamp={1}>
                           {selectedLogo.name}
                         </Text>
-                        <Text size="xs" c="dimmed">
-                          Selected logo
-                        </Text>
+                        <Text size="xs" c="dimmed">Selected logo</Text>
                       </Stack>
                     </>
                   )}
                 </Group>
 
                 <Group gap="sm" wrap="nowrap">
-                  <Select
-                    placeholder="Select channel"
-                    data={channelOptions}
-                    value={selectedChannelId}
-                    onChange={(val) => setSelectedChannelId(val || '')}
-                    searchable
-                    w={280}
-                    size="sm"
-                  />
+                  {!channel && (
+                    <Select
+                      placeholder="Select channel"
+                      data={channelOptions}
+                      value={selectedChannelId}
+                      onChange={(val) => setSelectedChannelId(val || '')}
+                      searchable
+                      w={280}
+                      size="sm"
+                    />
+                  )}
                   <Button
                     color="teal"
                     onClick={handleApply}
@@ -375,6 +339,102 @@ export default function SearchPage() {
           )}
         </Transition>
       </Affix>
+    </Stack>
+  );
+}
+
+export default function SearchPage() {
+  const [searchParams] = useSearchParams();
+  const { channels } = useChannelStore();
+
+  const channelIds = searchParams.getAll('channels');
+  const singleChannelId = searchParams.get('channel');
+  const queryParam = searchParams.get('q') || '';
+
+  const channelOptions = channels.map((ch) => ({
+    value: ch.id.toString(),
+    label: `${ch.channel_number ? ch.channel_number + ' - ' : ''}${ch.name}`,
+  }));
+
+  const [appliedChannels, setAppliedChannels] = useState(new Set());
+
+  const handleLogoApplied = (channelId) => {
+    setAppliedChannels((prev) => new Set([...prev, channelId]));
+  };
+
+  if (channelIds.length > 1) {
+    const multiChannels = channelIds
+      .map((id) => channels.find((ch) => ch.id.toString() === id))
+      .filter(Boolean);
+
+    if (multiChannels.length === 0) {
+      return (
+        <Center py="xl">
+          <Text c="dimmed">No matching channels found. Sync channels first.</Text>
+        </Center>
+      );
+    }
+
+    return (
+      <Stack gap="lg">
+        <Group justify="space-between">
+          <Title order={3} c="white">
+            Batch Logo Search
+          </Title>
+          <Badge color="teal" variant="light" size="lg">
+            {multiChannels.length} channels
+          </Badge>
+        </Group>
+
+        <Tabs defaultValue={multiChannels[0]?.id.toString()} color="teal">
+          <Tabs.List>
+            {multiChannels.map((ch) => (
+              <Tabs.Tab
+                key={ch.id}
+                value={ch.id.toString()}
+                rightSection={
+                  appliedChannels.has(ch.id.toString()) ? (
+                    <Check size={14} color="#22c55e" />
+                  ) : null
+                }
+              >
+                {ch.channel_number ? `#${ch.channel_number} ` : ''}
+                {ch.name}
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+
+          {multiChannels.map((ch) => (
+            <Tabs.Panel key={ch.id} value={ch.id.toString()} pt="md">
+              <ChannelSearchPanel
+                channel={ch}
+                channelOptions={channelOptions}
+                allChannels={channels}
+                onLogoApplied={handleLogoApplied}
+              />
+            </Tabs.Panel>
+          ))}
+        </Tabs>
+      </Stack>
+    );
+  }
+
+  const singleChannel = singleChannelId
+    ? channels.find((ch) => ch.id.toString() === singleChannelId)
+    : null;
+
+  return (
+    <Stack gap="lg">
+      <Title order={3} c="white">
+        Logo Search
+      </Title>
+      <ChannelSearchPanel
+        channel={singleChannel}
+        channelOptions={channelOptions}
+        allChannels={channels}
+        onLogoApplied={handleLogoApplied}
+        defaultQuery={queryParam}
+      />
     </Stack>
   );
 }

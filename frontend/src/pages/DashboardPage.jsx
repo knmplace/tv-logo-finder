@@ -19,6 +19,9 @@ import {
   Center,
   Tooltip,
   Anchor,
+  Checkbox,
+  Affix,
+  Transition,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -29,8 +32,11 @@ import {
   XCircle,
   Image as ImageIcon,
   Clock,
+  X,
 } from 'lucide-react';
 import useChannelStore from '../store/channels';
+
+const MAX_SELECTED = 5;
 
 function StatCard({ icon: Icon, label, value, color }) {
   return (
@@ -64,6 +70,7 @@ export default function DashboardPage() {
     useChannelStore();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
+  const [selected, setSelected] = useState([]);
 
   useEffect(() => {
     fetchChannels();
@@ -86,6 +93,27 @@ export default function DashboardPage() {
     }
   };
 
+  const toggleSelect = (ch) => {
+    setSelected((prev) => {
+      const exists = prev.find((s) => s.id === ch.id);
+      if (exists) return prev.filter((s) => s.id !== ch.id);
+      if (prev.length >= MAX_SELECTED) {
+        notifications.show({
+          title: 'Limit reached',
+          message: `You can select up to ${MAX_SELECTED} channels at a time`,
+          color: 'yellow',
+        });
+        return prev;
+      }
+      return [...prev, ch];
+    });
+  };
+
+  const handleSearchSelected = () => {
+    const params = selected.map((ch) => `channels=${ch.id}`).join('&');
+    navigate(`/search?${params}`);
+  };
+
   const withLogo = channels.filter((ch) => ch.logo_url);
   const withoutLogo = channels.filter((ch) => !ch.logo_url);
 
@@ -105,7 +133,7 @@ export default function DashboardPage() {
   }, [channels, filter, search]);
 
   return (
-    <Stack gap="lg">
+    <Stack gap="lg" pb={selected.length > 0 ? 80 : 0}>
       <Group justify="space-between" align="center">
         <Title order={3} c="white">
           Channel Dashboard
@@ -150,13 +178,20 @@ export default function DashboardPage() {
       <Paper p="md" radius="md" withBorder style={{ borderColor: '#3f3f46' }}>
         <Stack gap="md">
           <Group justify="space-between">
-            <TextInput
-              placeholder="Search channels..."
-              leftSection={<Search size={16} />}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              w={300}
-            />
+            <Group gap="sm">
+              <TextInput
+                placeholder="Search channels..."
+                leftSection={<Search size={16} />}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                w={300}
+              />
+              {selected.length > 0 && (
+                <Badge color="teal" variant="light" size="lg">
+                  {selected.length}/{MAX_SELECTED} selected
+                </Badge>
+              )}
+            </Group>
             <SegmentedControl
               value={filter}
               onChange={setFilter}
@@ -187,6 +222,25 @@ export default function DashboardPage() {
               <Table striped highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
+                    <Table.Th c="#a1a1aa" w={40} ta="center">
+                      <Tooltip label="Select channels to search logos in batch (max 5)">
+                        <Box style={{ cursor: 'help' }}>
+                          <Checkbox
+                            size="xs"
+                            color="teal"
+                            checked={selected.length > 0 && selected.length === filtered.length}
+                            indeterminate={selected.length > 0 && selected.length < filtered.length}
+                            onChange={() => {
+                              if (selected.length > 0) {
+                                setSelected([]);
+                              } else {
+                                setSelected(filtered.slice(0, MAX_SELECTED));
+                              }
+                            }}
+                          />
+                        </Box>
+                      </Tooltip>
+                    </Table.Th>
                     <Table.Th c="#a1a1aa" w={50}>#</Table.Th>
                     <Table.Th c="#a1a1aa" w={50}>Logo</Table.Th>
                     <Table.Th c="#a1a1aa">Channel Name</Table.Th>
@@ -197,93 +251,168 @@ export default function DashboardPage() {
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {filtered.map((ch) => (
-                    <Table.Tr key={ch.id}>
-                      <Table.Td c="white">{ch.channel_number}</Table.Td>
-                      <Table.Td>
-                        {ch.logo_url ? (
-                          <Image
-                            src={ch.logo_url}
-                            w={32}
-                            h={32}
-                            fit="contain"
-                            fallbackSrc=""
-                            style={{ borderRadius: 4 }}
+                  {filtered.map((ch) => {
+                    const isSelected = selected.some((s) => s.id === ch.id);
+                    return (
+                      <Table.Tr
+                        key={ch.id}
+                        style={isSelected ? { backgroundColor: 'rgba(20, 145, 126, 0.08)' } : undefined}
+                      >
+                        <Table.Td ta="center">
+                          <Checkbox
+                            size="xs"
+                            color="teal"
+                            checked={isSelected}
+                            onChange={() => toggleSelect(ch)}
                           />
-                        ) : (
-                          <Box
-                            w={32}
-                            h={32}
-                            style={{
-                              borderRadius: 4,
-                              backgroundColor: '#3f3f46',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
-                            <ImageIcon size={16} color="#71717a" />
-                          </Box>
-                        )}
-                      </Table.Td>
-                      <Table.Td c="white">{ch.name}</Table.Td>
-                      <Table.Td>
-                        {ch.logo_url ? (
-                          <Tooltip label={ch.logo_url} multiline w={400} withArrow>
-                            <Anchor
-                              href={ch.logo_url}
-                              target="_blank"
-                              size="xs"
-                              c="#d4d4d8"
+                        </Table.Td>
+                        <Table.Td c="white">{ch.channel_number}</Table.Td>
+                        <Table.Td>
+                          {ch.logo_url ? (
+                            <Image
+                              src={ch.logo_url}
+                              w={32}
+                              h={32}
+                              fit="contain"
+                              fallbackSrc=""
+                              style={{ borderRadius: 4 }}
+                            />
+                          ) : (
+                            <Box
+                              w={32}
+                              h={32}
                               style={{
-                                display: 'block',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
+                                borderRadius: 4,
+                                backgroundColor: '#3f3f46',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
                               }}
                             >
-                              {ch.logo_url}
-                            </Anchor>
-                          </Tooltip>
-                        ) : (
-                          <Text size="xs" c="#52525b">—</Text>
-                        )}
-                      </Table.Td>
-                      <Table.Td c="#d4d4d8">{ch.group || '-'}</Table.Td>
-                      <Table.Td ta="center">
-                        {ch.logo_url ? (
-                          <Badge color="green" variant="light" size="sm">
-                            Has Logo
-                          </Badge>
-                        ) : (
-                          <Badge color="red" variant="light" size="sm">
-                            Missing
-                          </Badge>
-                        )}
-                      </Table.Td>
-                      <Table.Td ta="center">
-                        <ActionIcon
-                          variant="light"
-                          color="teal"
-                          size="sm"
-                          onClick={() =>
-                            navigate(
-                              `/search?channel=${ch.id}&q=${encodeURIComponent(ch.name)}`
-                            )
-                          }
-                          title="Find Logo"
-                        >
-                          <Search size={14} />
-                        </ActionIcon>
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
+                              <ImageIcon size={16} color="#71717a" />
+                            </Box>
+                          )}
+                        </Table.Td>
+                        <Table.Td c="white">{ch.name}</Table.Td>
+                        <Table.Td>
+                          {ch.logo_url ? (
+                            <Tooltip label={ch.logo_url} multiline w={400} withArrow>
+                              <Anchor
+                                href={ch.logo_url}
+                                target="_blank"
+                                size="xs"
+                                c="#d4d4d8"
+                                style={{
+                                  display: 'block',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {ch.logo_url}
+                              </Anchor>
+                            </Tooltip>
+                          ) : (
+                            <Text size="xs" c="#52525b">—</Text>
+                          )}
+                        </Table.Td>
+                        <Table.Td c="#d4d4d8">{ch.group || '-'}</Table.Td>
+                        <Table.Td ta="center">
+                          {ch.logo_url ? (
+                            <Badge color="green" variant="light" size="sm">
+                              Has Logo
+                            </Badge>
+                          ) : (
+                            <Badge color="red" variant="light" size="sm">
+                              Missing
+                            </Badge>
+                          )}
+                        </Table.Td>
+                        <Table.Td ta="center">
+                          <ActionIcon
+                            variant="light"
+                            color="teal"
+                            size="sm"
+                            onClick={() =>
+                              navigate(
+                                `/search?channel=${ch.id}&q=${encodeURIComponent(ch.name)}`
+                              )
+                            }
+                            title="Find Logo"
+                          >
+                            <Search size={14} />
+                          </ActionIcon>
+                        </Table.Td>
+                      </Table.Tr>
+                    );
+                  })}
                 </Table.Tbody>
               </Table>
             </Table.ScrollContainer>
           )}
         </Stack>
       </Paper>
+
+      <Affix position={{ bottom: 0, left: 0, right: 0 }}>
+        <Transition mounted={selected.length > 0} transition="slide-up">
+          {(styles) => (
+            <Paper
+              style={{
+                ...styles,
+                borderTop: '1px solid #3f3f46',
+                borderRadius: 0,
+              }}
+              bg="#27272a"
+              p="md"
+            >
+              <Group justify="center" gap="md">
+                <Text size="sm" c="#a1a1aa">
+                  {selected.length} channel{selected.length !== 1 ? 's' : ''} selected:
+                </Text>
+                <Group gap="xs">
+                  {selected.map((ch) => (
+                    <Badge
+                      key={ch.id}
+                      color="teal"
+                      variant="light"
+                      rightSection={
+                        <ActionIcon
+                          size={14}
+                          variant="transparent"
+                          color="teal"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSelect(ch);
+                          }}
+                        >
+                          <X size={10} />
+                        </ActionIcon>
+                      }
+                    >
+                      {ch.name}
+                    </Badge>
+                  ))}
+                </Group>
+                <Button
+                  color="teal"
+                  leftSection={<Search size={16} />}
+                  onClick={handleSearchSelected}
+                >
+                  Search Logos for Selected
+                </Button>
+                <Button
+                  variant="subtle"
+                  color="gray"
+                  size="sm"
+                  onClick={() => setSelected([])}
+                >
+                  Clear
+                </Button>
+              </Group>
+            </Paper>
+          )}
+        </Transition>
+      </Affix>
     </Stack>
   );
 }
