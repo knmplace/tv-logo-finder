@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth import get_current_user
-from config import get_all_settings
+from config import get_all_settings, get_backend_headers
 from database import get_db
 from models import CachedChannel, User
 
@@ -139,9 +139,7 @@ async def apply_logo(
             detail="Backend not configured",
         )
 
-    headers = {"Content-Type": "application/json"}
-    if settings.get("backend_api_key"):
-        headers["Authorization"] = f"Bearer {settings['backend_api_key']}"
+    headers = await get_backend_headers(settings)
 
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:

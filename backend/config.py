@@ -13,24 +13,56 @@ from models import AppConfig, User
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
-VALID_KEYS = {"backend_type", "backend_url", "backend_api_key"}
+VALID_KEYS = {"backend_type", "backend_url", "backend_api_key", "backend_username", "backend_password"}
 
 
 class SettingsResponse(BaseModel):
     backend_type: str | None = None
     backend_url: str | None = None
     backend_api_key: str | None = None
+    backend_username: str | None = None
+    backend_password: str | None = None
 
 
 class SettingsUpdate(BaseModel):
     backend_type: str | None = None
     backend_url: str | None = None
     backend_api_key: str | None = None
+    backend_username: str | None = None
+    backend_password: str | None = None
 
 
 class ConnectionTestResult(BaseModel):
     success: bool
     message: str
+
+
+async def get_backend_headers(settings: dict) -> dict[str, str]:
+    headers = {"Content-Type": "application/json"}
+    backend_type = settings.get("backend_type")
+
+    if backend_type == "ecm":
+        if settings.get("backend_api_key"):
+            headers["Authorization"] = f"Bearer {settings['backend_api_key']}"
+    elif backend_type == "dispatcharr":
+        username = settings.get("backend_username")
+        password = settings.get("backend_password")
+        backend_url = settings.get("backend_url")
+        if username and password and backend_url:
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    resp = await client.post(
+                        f"{backend_url}/api/token/",
+                        json={"username": username, "password": password},
+                    )
+                    if resp.status_code == 200:
+                        token = resp.json().get("access")
+                        if token:
+                            headers["Authorization"] = f"Bearer {token}"
+            except Exception:
+                logger.warning("Failed to authenticate with Dispatcharr")
+
+    return headers
 
 
 async def get_setting(db: AsyncSession, key: str) -> str | None:
@@ -106,9 +138,7 @@ async def test_connection(
     else:
         test_url = f"{backend_url}/api/channels/channels/"
 
-    headers = {}
-    if settings.get("backend_api_key"):
-        headers["Authorization"] = f"Bearer {settings['backend_api_key']}"
+    headers = await get_backend_headers(settings)
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:

@@ -32,6 +32,8 @@ export default function SetupPage() {
   const [backendType, setBackendType] = useState('ecm');
   const [backendUrl, setBackendUrl] = useState('');
   const [apiKey, setApiKey] = useState('');
+  const [backendUsername, setBackendUsername] = useState('');
+  const [backendPassword, setBackendPassword] = useState('');
   const [connectionResult, setConnectionResult] = useState(null);
   const [testing, setTesting] = useState(false);
 
@@ -53,15 +55,23 @@ export default function SetupPage() {
     }
   };
 
+  const buildSettingsPayload = () => {
+    const payload = { backend_type: backendType, backend_url: backendUrl };
+    if (backendType === 'ecm') {
+      payload.backend_api_key = apiKey || undefined;
+    } else {
+      payload.backend_username = backendUsername || undefined;
+      payload.backend_password = backendPassword || undefined;
+    }
+    return payload;
+  };
+
   const handleTestConnection = async () => {
     setTesting(true);
     setConnectionResult(null);
     try {
-      const result = await api.post('/api/settings/test-connection', {
-        backend_type: backendType,
-        backend_url: backendUrl,
-        api_key: apiKey || undefined,
-      });
+      await api.put('/api/settings', buildSettingsPayload());
+      const result = await api.post('/api/settings/test-connection');
       setConnectionResult(result);
     } catch (err) {
       setConnectionResult({ success: false, message: err.message });
@@ -72,11 +82,7 @@ export default function SetupPage() {
   const handleSaveSettings = async () => {
     setLoading(true);
     try {
-      await api.put('/api/settings', {
-        backend_type: backendType,
-        backend_url: backendUrl,
-        api_key: apiKey || undefined,
-      });
+      await api.put('/api/settings', buildSettingsPayload());
       setActive(2);
     } catch (err) {
       setConnectionResult({ success: false, message: err.message });
@@ -179,14 +185,34 @@ export default function SetupPage() {
                   required
                 />
 
-                <PasswordInput
-                  label={backendType === 'ecm' ? 'Dispatcharr API Key' : 'API Key'}
-                  description={backendType === 'ecm' ? 'Required — ECM uses your Dispatcharr API key' : 'Required if authentication is enabled'}
-                  placeholder={backendType === 'ecm' ? 'Dispatcharr API key from ECM settings' : 'API key'}
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  required={backendType === 'ecm'}
-                />
+                {backendType === 'ecm' ? (
+                  <PasswordInput
+                    label="Dispatcharr API Key"
+                    description="Required — found in your Dispatcharr settings"
+                    placeholder="Dispatcharr API key"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    required
+                  />
+                ) : (
+                  <>
+                    <TextInput
+                      label="Dispatcharr Username"
+                      description="Required — your Dispatcharr login"
+                      placeholder="Username"
+                      value={backendUsername}
+                      onChange={(e) => setBackendUsername(e.target.value)}
+                      required
+                    />
+                    <PasswordInput
+                      label="Dispatcharr Password"
+                      placeholder="Password"
+                      value={backendPassword}
+                      onChange={(e) => setBackendPassword(e.target.value)}
+                      required
+                    />
+                  </>
+                )}
 
                 {connectionResult && (
                   <Alert
