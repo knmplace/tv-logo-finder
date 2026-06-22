@@ -1,13 +1,15 @@
 FROM node:22-alpine AS frontend-build
+ARG BUILD_CHANNEL=stable
 WORKDIR /build
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install
 COPY frontend/ .
+ENV VITE_BUILD_CHANNEL=$BUILD_CHANNEL
 RUN npm run build
 
 FROM python:3.12-slim
 
-LABEL org.opencontainers.image.title="TV Logo Finder (Beta)"
+LABEL org.opencontainers.image.title="TV Logo Finder"
 LABEL org.opencontainers.image.description="Search and assign TV channel logos for Dispatcharr and ECM"
 LABEL org.opencontainers.image.source="https://github.com/knmplace/tv-logo-finder"
 LABEL org.opencontainers.image.url="https://github.com/knmplace/tv-logo-finder"

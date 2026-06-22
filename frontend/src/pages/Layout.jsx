@@ -15,6 +15,7 @@ import {
   ActionIcon,
   Tooltip,
   CloseButton,
+  Badge,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -31,7 +32,7 @@ import {
 } from 'lucide-react';
 import useAuthStore from '../store/auth';
 import useUpdateStore from '../store/updates';
-import { APP_VERSION } from '../version';
+import { APP_VERSION, DISPLAY_VERSION, IS_BETA } from '../version';
 
 export default function Layout() {
   const location = useLocation();
@@ -89,6 +90,11 @@ export default function Layout() {
             <Title order={4} c="white" fw={600}>
               TV Logo Finder
             </Title>
+            {IS_BETA && (
+              <Badge color="orange" variant="filled" size="sm">
+                BETA
+              </Badge>
+            )}
           </Group>
 
           <Menu shadow="md" width={180} position="bottom-end">
@@ -146,7 +152,7 @@ export default function Layout() {
         </Box>
         <Divider color="#3f3f46" mb="xs" />
         <Text size="xs" c="#a1a1aa" ta="center" pb="xs">
-          v{APP_VERSION}
+          v{DISPLAY_VERSION}
         </Text>
       </AppShell.Navbar>
 
@@ -187,7 +193,7 @@ export default function Layout() {
       >
         <Group h="100%" px="md" justify="space-between">
           <Text size="xs" c="#a1a1aa">
-            {APP_VERSION}
+            {DISPLAY_VERSION}
           </Text>
           <Group gap="xs">
             <Anchor

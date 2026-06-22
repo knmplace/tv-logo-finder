@@ -224,32 +224,32 @@ docker run -d \
 
 Your data (user accounts, settings, cached channels) is stored in the Docker volume and persists across upgrades.
 
-## Dev Builds
+## Beta Builds
 
-A `dev` image is automatically built from the latest code on `main` after every push. It includes the newest features and fixes but may be unstable.
+A `beta` image is automatically built from the latest code on `main` after every push. It includes the newest features and fixes but may be unstable. The app will display a **BETA** badge in the header and show the version as `x.x.x-beta` so you always know which channel you're running.
 
-### Using the Dev Image
+### Using the Beta Image
 
-Replace `latest` with `dev` in your compose file or run command:
+Replace `latest` with `beta` in your compose file or run command:
 
 ```yaml
 services:
   tv-logo-finder:
-    image: ghcr.io/knmplace/tv-logo-finder:dev
+    image: ghcr.io/knmplace/tv-logo-finder:beta
     # ... rest of config stays the same
 ```
 
-### Switching Between Stable and Dev
+### Switching Between Stable and Beta
 
 | Image Tag | Description |
 |-----------|-------------|
 | `ghcr.io/knmplace/tv-logo-finder:latest` | Stable release — tested and tagged |
-| `ghcr.io/knmplace/tv-logo-finder:dev` | Latest from main — newest features, may have bugs |
+| `ghcr.io/knmplace/tv-logo-finder:beta` | Latest from main — newest features, may have bugs |
 
 To switch, change the image tag and pull:
 
 ```bash
-# Switch to dev
+# Switch to beta
 docker compose pull
 docker compose up -d
 
@@ -259,6 +259,8 @@ docker compose up -d
 ```
 
 Your data volume is shared between both, so switching is seamless — no data loss.
+
+> **Note:** On first login or first sync, the filter tabs and sync button may take a moment to become responsive while the channel list is being fetched from your backend. This is normal and only occurs on the initial load.
 
 ## Local Development
 

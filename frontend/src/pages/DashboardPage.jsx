@@ -22,6 +22,7 @@ import {
   Affix,
   Transition,
   Select,
+  Alert,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -35,6 +36,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Info,
 } from 'lucide-react';
 import useChannelStore from '../store/channels';
 
@@ -216,6 +218,12 @@ export default function DashboardPage() {
           color="#a1a1aa"
         />
       </SimpleGrid>
+
+      {syncing && channels.length === 0 && (
+        <Alert icon={<Info size={18} />} color="blue" variant="light" title="First sync in progress">
+          Fetching your channel list from the backend. This may take a moment on the first sync — the filter tabs and controls will be available once loading completes.
+        </Alert>
+      )}
 
       <Group justify="space-between">
         <Group gap="sm">
