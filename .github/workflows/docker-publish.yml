@@ -1,9 +1,10 @@
 name: Build and Publish Docker Image
 
 on:
+  release:
+    types: [published]
   push:
-    tags:
-      - 'v*'
+    branches: [main]
   workflow_dispatch:
 
 env:
@@ -34,10 +35,12 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest
-            type=raw,value=beta
+            # On release: latest + semver tags
+            type=semver,pattern={{version}},enable=${{ github.event_name == 'release' }}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ github.event_name == 'release' }}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
+            # On push to main: dev tag
+            type=raw,value=dev,enable=${{ github.event_name == 'push' }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
