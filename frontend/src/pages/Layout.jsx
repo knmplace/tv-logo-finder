@@ -16,7 +16,10 @@ import {
   Tooltip,
   CloseButton,
   Badge,
+  Affix,
+  Transition,
 } from '@mantine/core';
+import { useWindowScroll } from '@mantine/hooks';
 import { useDisclosure } from '@mantine/hooks';
 import {
   LayoutDashboard,
@@ -29,6 +32,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ArrowUpCircle,
+  ChevronUp,
 } from 'lucide-react';
 import useAuthStore from '../store/auth';
 import useUpdateStore from '../store/updates';
@@ -40,6 +44,7 @@ export default function Layout() {
   const { updateInfo, dismissed, checkForUpdates, dismiss } = useUpdateStore();
   const [mobileOpened, { toggle: toggleMobile, close: closeMobile }] = useDisclosure(false);
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+  const [scroll, scrollTo] = useWindowScroll();
 
   useEffect(() => {
     if (user) checkForUpdates();
@@ -214,6 +219,24 @@ export default function Layout() {
           </Group>
         </Group>
       </AppShell.Footer>
+
+      <Affix position={{ bottom: 60, right: 20 }}>
+        <Transition mounted={scroll.y > 300} transition="slide-up">
+          {(styles) => (
+            <ActionIcon
+              style={styles}
+              size="xl"
+              radius="xl"
+              color="teal"
+              variant="filled"
+              onClick={() => scrollTo({ y: 0 })}
+              title="Back to top"
+            >
+              <ChevronUp size={20} />
+            </ActionIcon>
+          )}
+        </Transition>
+      </Affix>
     </AppShell>
   );
 }
