@@ -17,7 +17,6 @@ import {
   Loader,
   Center,
   Tooltip,
-  Anchor,
   Checkbox,
   Affix,
   Transition,
@@ -309,11 +308,11 @@ export default function DashboardPage() {
                         style={isSelected ? { backgroundColor: 'rgba(20, 145, 126, 0.08)' } : undefined}
                       >
                         <Table.Td ta="center">
-                          <Checkbox
-                            size="xs"
-                            color="teal"
+                          <input
+                            type="checkbox"
                             checked={isSelected}
                             onChange={() => toggleSelect(ch)}
+                            style={{ accentColor: '#14917e', cursor: 'pointer' }}
                           />
                         </Table.Td>
                         <Table.Td c="white">{ch.channel_number}</Table.Td>
@@ -323,52 +322,61 @@ export default function DashboardPage() {
                         <Table.Td c="white">{ch.name}</Table.Td>
                         <Table.Td>
                           {ch.logo_url ? (
-                            <Tooltip label={ch.logo_url} multiline w={400} withArrow>
-                              <Anchor
-                                href={ch.logo_url}
-                                target="_blank"
-                                size="xs"
-                                c="#d4d4d8"
-                                style={{
-                                  display: 'block',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
-                                }}
-                              >
-                                {ch.logo_url}
-                              </Anchor>
-                            </Tooltip>
+                            <a
+                              href={ch.logo_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={ch.logo_url}
+                              style={{
+                                display: 'block',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                color: '#d4d4d8',
+                                fontSize: 12,
+                                textDecoration: 'none',
+                              }}
+                            >
+                              {ch.logo_url}
+                            </a>
                           ) : (
-                            <Text size="xs" c="#52525b">—</Text>
+                            <span style={{ fontSize: 12, color: '#52525b' }}>—</span>
                           )}
                         </Table.Td>
                         <Table.Td c="#d4d4d8">{ch.group || '-'}</Table.Td>
                         <Table.Td ta="center">
-                          {ch.logo_url ? (
-                            <Badge color="green" variant="light" size="sm">
-                              Has Logo
-                            </Badge>
-                          ) : (
-                            <Badge color="red" variant="light" size="sm">
-                              Missing
-                            </Badge>
-                          )}
+                          <span style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            padding: '2px 8px',
+                            borderRadius: 4,
+                            backgroundColor: ch.logo_url ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                            color: ch.logo_url ? '#4ade80' : '#f87171',
+                          }}>
+                            {ch.logo_url ? 'Has Logo' : 'Missing'}
+                          </span>
                         </Table.Td>
                         <Table.Td ta="center">
-                          <ActionIcon
-                            variant="light"
-                            color="teal"
-                            size="sm"
+                          <button
                             onClick={() =>
                               navigate(
                                 `/search?channel=${ch.id}&q=${encodeURIComponent(ch.name)}`
                               )
                             }
                             title="Find Logo"
+                            style={{
+                              background: 'rgba(20, 145, 126, 0.15)',
+                              border: 'none',
+                              borderRadius: 4,
+                              padding: '4px 6px',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
                           >
-                            <Search size={14} />
-                          </ActionIcon>
+                            <Search size={14} color="#14b8a6" />
+                          </button>
                         </Table.Td>
                       </Table.Tr>
                     );
