@@ -21,6 +21,7 @@ import {
   Checkbox,
   Affix,
   Transition,
+  Select,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -38,7 +39,7 @@ import {
 import useChannelStore from '../store/channels';
 
 const MAX_SELECTED = 5;
-const PAGE_SIZE = 25;
+const PAGE_SIZE_OPTIONS = ['25', '50', '100', '250', '300'];
 
 function StatCard({ icon: Icon, label, value, color }) {
   return (
@@ -104,6 +105,7 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState('all');
   const [selected, setSelected] = useState([]);
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(25);
 
   useEffect(() => {
     if (channels.length === 0) fetchChannels();
@@ -167,10 +169,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setPage(0);
-  }, [filter, search]);
+  }, [filter, search, pageSize]);
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const pageRows = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  const pageRows = filtered.slice(page * pageSize, (page + 1) * pageSize);
 
   return (
     <Stack gap="lg" pb={selected.length > 0 ? 80 : 0}>
@@ -367,11 +369,22 @@ export default function DashboardPage() {
               </Table>
             </Table.ScrollContainer>
 
-            {totalPages > 1 && (
-              <Group justify="space-between" align="center">
+            <Group justify="space-between" align="center">
+              <Group gap="sm" align="center">
                 <Text size="sm" c="#a1a1aa">
-                  Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+                  Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, filtered.length)} of {filtered.length}
                 </Text>
+                <Select
+                  data={PAGE_SIZE_OPTIONS}
+                  value={String(pageSize)}
+                  onChange={(val) => setPageSize(Number(val))}
+                  size="xs"
+                  w={80}
+                  label="Page Size"
+                  styles={{ label: { color: '#a1a1aa', fontSize: 10, marginBottom: 2 } }}
+                />
+              </Group>
+              {totalPages > 1 && (
                 <Group gap="xs">
                   <ActionIcon
                     variant="subtle"
@@ -402,8 +415,8 @@ export default function DashboardPage() {
                     <ChevronRight size={16} />
                   </ActionIcon>
                 </Group>
-              </Group>
-            )}
+              )}
+            </Group>
           </Stack>
         )}
       </Paper>
