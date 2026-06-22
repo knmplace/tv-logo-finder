@@ -13,7 +13,7 @@ Search and assign TV channel logos from a comprehensive database of 54,000+ logo
 - **One-Click Assignment** — Select a logo and apply it directly to your channel in Dispatcharr or ECM
 - **Batch Logo Search** — Select up to 5 channels from the dashboard and search logos for all of them in a tabbed interface
 - **Channel Dashboard** — See all channels with logo status, existing logo URLs, and group names at a glance
-- **Update Notifications** — Built-in update checker alerts you when a new version is available, with separate stable and beta channels
+- **Update Notifications** — Built-in update checker alerts you when a new version is available
 - **Offset Pagination** — Load More button fetches additional results without duplicates
 - **Collapsible Sidebar** — Toggle the navigation panel to maximize screen space
 - **Dual Backend Support** — Connect to ECM or Dispatcharr with API key or username/password auth
@@ -223,6 +223,42 @@ docker run -d \
 ```
 
 Your data (user accounts, settings, cached channels) is stored in the Docker volume and persists across upgrades.
+
+## Dev Builds
+
+A `dev` image is automatically built from the latest code on `main` after every push. It includes the newest features and fixes but may be unstable.
+
+### Using the Dev Image
+
+Replace `latest` with `dev` in your compose file or run command:
+
+```yaml
+services:
+  tv-logo-finder:
+    image: ghcr.io/knmplace/tv-logo-finder:dev
+    # ... rest of config stays the same
+```
+
+### Switching Between Stable and Dev
+
+| Image Tag | Description |
+|-----------|-------------|
+| `ghcr.io/knmplace/tv-logo-finder:latest` | Stable release — tested and tagged |
+| `ghcr.io/knmplace/tv-logo-finder:dev` | Latest from main — newest features, may have bugs |
+
+To switch, change the image tag and pull:
+
+```bash
+# Switch to dev
+docker compose pull
+docker compose up -d
+
+# Switch back to stable — change image tag back to :latest, then:
+docker compose pull
+docker compose up -d
+```
+
+Your data volume is shared between both, so switching is seamless — no data loss.
 
 ## Local Development
 
