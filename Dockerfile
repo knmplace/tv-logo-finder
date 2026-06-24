@@ -1,10 +1,12 @@
 FROM node:22-alpine AS frontend-build
 ARG BUILD_CHANNEL=stable
+ARG BUILD_VERSION=
 WORKDIR /build
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install
 COPY frontend/ .
 ENV VITE_BUILD_CHANNEL=$BUILD_CHANNEL
+ENV VITE_BUILD_VERSION=$BUILD_VERSION
 RUN npm run build
 
 FROM python:3.12-slim

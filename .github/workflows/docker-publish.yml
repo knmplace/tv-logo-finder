@@ -105,13 +105,17 @@ jobs:
             # On push to main: beta tag
             type=raw,value=beta,enable=${{ github.event_name == 'push' }}
 
-      - name: Set build channel
+      - name: Set build channel and version
         id: channel
         run: |
           if [ "${{ github.event_name }}" = "push" ]; then
             echo "channel=beta" >> $GITHUB_OUTPUT
+            echo "version=${{ steps.beta.outputs.base_version }}-beta.${{ steps.beta.outputs.beta_num }}" >> $GITHUB_OUTPUT
           else
+            # Strip leading 'v' from release tag
+            TAG="${{ github.event.release.tag_name }}"
             echo "channel=stable" >> $GITHUB_OUTPUT
+            echo "version=${TAG#v}" >> $GITHUB_OUTPUT
           fi
 
       - name: Set up Docker Buildx
@@ -124,7 +128,9 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: BUILD_CHANNEL=${{ steps.channel.outputs.channel }}
+          build-args: |
+            BUILD_CHANNEL=${{ steps.channel.outputs.channel }}
+            BUILD_VERSION=${{ steps.channel.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64,linux/arm64
