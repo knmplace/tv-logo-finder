@@ -22,6 +22,7 @@ import {
   Transition,
   Select,
   Alert,
+  Anchor,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -36,8 +37,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
+  ArrowUpCircle,
 } from 'lucide-react';
 import useChannelStore from '../store/channels';
+import useUpdateStore from '../store/updates';
+import { APP_VERSION, DISPLAY_VERSION, IS_BETA } from '../version';
 
 const MAX_SELECTED = 5;
 const PAGE_SIZE_OPTIONS = ['25', '50', '100', '250', '300'];
@@ -95,6 +99,59 @@ function LogoThumbnail({ src }) {
       style={{ borderRadius: 4, objectFit: 'contain' }}
       alt=""
     />
+  );
+}
+
+function VersionCard() {
+  const { updateInfo, loading, checkForUpdates } = useUpdateStore();
+
+  useEffect(() => {
+    checkForUpdates();
+  }, [checkForUpdates]);
+
+  return (
+    <Paper p="md" radius="md" withBorder style={{ borderColor: '#3f3f46' }}>
+      <Group justify="space-between" align="center">
+        <Group gap="sm">
+          <ArrowUpCircle size={18} color="#14917e" />
+          <Text size="sm" fw={600} c="white">Version</Text>
+          <Badge color={IS_BETA ? 'orange' : 'teal'} variant="light" size="sm">
+            {DISPLAY_VERSION}
+          </Badge>
+        </Group>
+        <Group gap="md">
+          {updateInfo?.latest_stable && (
+            <Group gap={4}>
+              <Text size="xs" c="#a1a1aa">Stable:</Text>
+              <Text size="xs" c="white" fw={500}>v{updateInfo.latest_stable}</Text>
+              {updateInfo.update_available && (
+                <Badge color="yellow" variant="light" size="xs">New</Badge>
+              )}
+            </Group>
+          )}
+          {updateInfo?.latest_beta && (
+            <Group gap={4}>
+              <Text size="xs" c="#a1a1aa">Beta:</Text>
+              <Text size="xs" c="white" fw={500}>v{updateInfo.latest_beta}</Text>
+            </Group>
+          )}
+          {updateInfo?.update_available && updateInfo.stable_url && (
+            <Anchor href={updateInfo.stable_url} target="_blank" rel="noopener" size="xs">
+              Release notes
+            </Anchor>
+          )}
+          <ActionIcon
+            variant="subtle"
+            color="teal"
+            size="sm"
+            onClick={() => checkForUpdates(true)}
+            loading={loading}
+          >
+            <RefreshCw size={14} />
+          </ActionIcon>
+        </Group>
+      </Group>
+    </Paper>
   );
 }
 
@@ -217,6 +274,8 @@ export default function DashboardPage() {
           color="#a1a1aa"
         />
       </SimpleGrid>
+
+      <VersionCard />
 
       {syncing && channels.length === 0 && (
         <Alert icon={<Info size={18} />} color="blue" variant="light" title="First sync in progress">

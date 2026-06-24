@@ -171,6 +171,8 @@ _COUNTRY_PREFIX_RE = re.compile(
 
 _NOISE_WORDS = {"east", "west", "hd", "uhd", "4k", "fhd", "sd", "television", "network", "channel", "broadcasting", "tv"}
 
+_COUNTRY_SUFFIX_RE = re.compile(r'-(?:us|uk|ca|au|nz|fr|de|it|es|mx|br|in|jp|za|nl|se|no|dk|fi|pt|at|ch|be|ie|pl|cz|hu|ro|bg|hr|rs|si|sk|gr|tr|il|ae|sa|kr|tw|hk|sg|my|ph|id|th|vn|ar|cl|co|pe|ve|ec|py|uy|bo|cr|pa|do|pr|jm|tt|cu|ht|bs|bb|gy|sr|bz|gt|sv|hn|ni|hz)$', re.IGNORECASE)
+
 
 def _clean_channel_name(name: str) -> str:
     cleaned = _COUNTRY_PREFIX_RE.sub("", name.strip())
@@ -179,8 +181,15 @@ def _clean_channel_name(name: str) -> str:
     return " ".join(words).strip()
 
 
+def _extract_match_name(filename: str) -> str:
+    basename = filename.rsplit("/", 1)[-1] if "/" in filename else filename
+    name = basename.rsplit(".", 1)[0]
+    name = _COUNTRY_SUFFIX_RE.sub("", name)
+    return name.lower().replace("_", " ").replace("-", " ")
+
+
 def _fuzzy_score(query: str, filename: str) -> float:
-    name_lower = filename.rsplit(".", 1)[0].lower().replace("_", " ").replace("-", " ")
+    name_lower = _extract_match_name(filename)
     name_compact = name_lower.replace(" ", "")
     query_lower = query.lower().strip()
     query_compact = query_lower.replace(" ", "")
