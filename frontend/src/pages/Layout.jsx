@@ -214,7 +214,7 @@ export default function Layout() {
             </Anchor>
             <Text size="xs" c="#a1a1aa">·</Text>
             <Text size="xs" c="#a1a1aa">
-              Logo data by jesmannstl/tvlogos
+              Multi-source logo search
             </Text>
           </Group>
         </Group>

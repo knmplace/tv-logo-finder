@@ -9,20 +9,16 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from auth import get_current_user
-from config import get_all_settings, get_backend_headers
+from auth import get_current_user, require_admin
 from database import get_db
-from models import User, CachedChannel
+from models import User, CachedChannel, LogoSource
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/logos", tags=["logos"])
 
-GITHUB_TREE_URL = "https://api.github.com/repos/jesmannstl/tvlogos/git/trees/main?recursive=1"
-RAW_BASE_URL = "https://raw.githubusercontent.com/jesmannstl/tvlogos/main"
-TARGET_DIR = "AllNamedByChannel/"
-
-_tree_cache: dict = {"entries": [], "fetched_at": 0.0}
 CACHE_TTL = 3600
+
+_source_caches: dict[int, dict] = {}
 
 
 class LogoMatch(BaseModel):
@@ -30,6 +26,8 @@ class LogoMatch(BaseModel):
     path: str
     url: str
     score: float
+    source_id: int
+    source_name: str
 
 
 class LogoApplyRequest(BaseModel):
@@ -44,48 +42,106 @@ class LogoApplyResult(BaseModel):
     logo_id: int | None = None
 
 
-async def _get_tree() -> list[dict]:
-    now = time.time()
-    if _tree_cache["entries"] and (now - _tree_cache["fetched_at"]) < CACHE_TTL:
-        return _tree_cache["entries"]
+class LogoSourceResponse(BaseModel):
+    id: int
+    name: str
+    repo_owner: str
+    repo_name: str
+    branch: str
+    path_prefix: str
+    enabled: bool
+    is_builtin: bool
+    logo_count: int = 0
 
-    logger.info("Fetching GitHub tree for tvlogos repo")
+
+class LogoSourceCreate(BaseModel):
+    name: str
+    repo_owner: str
+    repo_name: str
+    branch: str = "main"
+    path_prefix: str = ""
+
+
+class LogoSourceUpdate(BaseModel):
+    name: str | None = None
+    enabled: bool | None = None
+    branch: str | None = None
+    path_prefix: str | None = None
+
+
+async def _get_tree_for_source(source: LogoSource) -> list[dict]:
+    source_id = source.id
+    now = time.time()
+
+    if source_id in _source_caches:
+        cache = _source_caches[source_id]
+        if cache["entries"] and (now - cache["fetched_at"]) < CACHE_TTL:
+            return cache["entries"]
+
+    tree_url = f"https://api.github.com/repos/{source.repo_owner}/{source.repo_name}/git/trees/{source.branch}?recursive=1"
+    raw_base = f"https://raw.githubusercontent.com/{source.repo_owner}/{source.repo_name}/{source.branch}"
+
+    logger.info("Fetching GitHub tree for %s/%s", source.repo_owner, source.repo_name)
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.get(GITHUB_TREE_URL)
+            resp = await client.get(tree_url)
             resp.raise_for_status()
     except httpx.HTTPError as e:
-        logger.error("Failed to fetch GitHub tree: %s", e)
-        if _tree_cache["entries"]:
-            return _tree_cache["entries"]
+        logger.error("Failed to fetch GitHub tree for %s/%s: %s", source.repo_owner, source.repo_name, e)
+        if source_id in _source_caches and _source_caches[source_id]["entries"]:
+            return _source_caches[source_id]["entries"]
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Failed to fetch logo repository from GitHub",
+            detail=f"Failed to fetch logo repository {source.repo_owner}/{source.repo_name} from GitHub",
         )
 
     data = resp.json()
     entries = []
+    prefix = source.path_prefix
     for item in data.get("tree", []):
         if item.get("type") != "blob":
             continue
         path = item.get("path", "")
-        if not path.startswith(TARGET_DIR):
+        if prefix and not path.startswith(prefix):
             continue
         if not path.lower().endswith((".png", ".jpg", ".jpeg", ".svg", ".webp")):
             continue
-        filename = path[len(TARGET_DIR):]
-        entries.append({"filename": filename, "path": path})
+        filename = path[len(prefix):] if prefix else path
+        entries.append({
+            "filename": filename,
+            "path": path,
+            "raw_base": raw_base,
+        })
 
-    _tree_cache["entries"] = entries
-    _tree_cache["fetched_at"] = now
-    logger.info("Cached %d logo entries from GitHub", len(entries))
+    _source_caches[source_id] = {"entries": entries, "fetched_at": now}
+    logger.info("Cached %d logo entries from %s/%s", len(entries), source.repo_owner, source.repo_name)
     return entries
+
+
+async def preload_all_sources():
+    from database import async_session
+    try:
+        async with async_session() as session:
+            result = await session.execute(
+                select(LogoSource).where(LogoSource.enabled == True)
+            )
+            sources = result.scalars().all()
+            total = 0
+            for source in sources:
+                try:
+                    entries = await _get_tree_for_source(source)
+                    total += len(entries)
+                except Exception as e:
+                    logger.warning("Preload failed for %s/%s: %s", source.repo_owner, source.repo_name, e)
+            logger.info("Preloaded %d total logo entries from %d sources", total, len(sources))
+    except Exception as e:
+        logger.warning("Logo preload failed (will retry on first search): %s", e)
 
 
 _COUNTRY_PREFIX_RE = re.compile(
     r'^(?:'
-    r'[A-Z]{2,3}\s*[:|]\s*'  # "USA|", "UK:", "US: ", "CA|"
-    r'|(?:USA?|UK|CA|AU|NZ|FR|DE|IT|ES|MX|BR|IN|JP)\s+'  # "USA ", "UK ", "CA "
+    r'[A-Z]{2,3}\s*[:|]\s*'
+    r'|(?:USA?|UK|CA|AU|NZ|FR|DE|IT|ES|MX|BR|IN|JP)\s+'
     r')',
     re.IGNORECASE,
 )
@@ -137,38 +193,202 @@ def _fuzzy_score(query: str, filename: str) -> float:
     return ratio if ratio >= 0.5 else 0.0
 
 
+@router.get("/sources", response_model=list[LogoSourceResponse])
+async def list_sources(
+    _user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(LogoSource).order_by(LogoSource.id))
+    sources = result.scalars().all()
+    resp = []
+    for s in sources:
+        count = len(_source_caches.get(s.id, {}).get("entries", []))
+        resp.append(LogoSourceResponse(
+            id=s.id,
+            name=s.name,
+            repo_owner=s.repo_owner,
+            repo_name=s.repo_name,
+            branch=s.branch,
+            path_prefix=s.path_prefix,
+            enabled=s.enabled,
+            is_builtin=s.is_builtin,
+            logo_count=count,
+        ))
+    return resp
+
+
+@router.post("/sources", response_model=LogoSourceResponse, status_code=201)
+async def create_source(
+    body: LogoSourceCreate,
+    _user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    source = LogoSource(
+        name=body.name,
+        repo_owner=body.repo_owner,
+        repo_name=body.repo_name,
+        branch=body.branch,
+        path_prefix=body.path_prefix,
+        enabled=True,
+        is_builtin=False,
+    )
+    db.add(source)
+    await db.commit()
+    await db.refresh(source)
+
+    try:
+        entries = await _get_tree_for_source(source)
+        count = len(entries)
+    except Exception:
+        count = 0
+
+    return LogoSourceResponse(
+        id=source.id,
+        name=source.name,
+        repo_owner=source.repo_owner,
+        repo_name=source.repo_name,
+        branch=source.branch,
+        path_prefix=source.path_prefix,
+        enabled=source.enabled,
+        is_builtin=source.is_builtin,
+        logo_count=count,
+    )
+
+
+@router.patch("/sources/{source_id}", response_model=LogoSourceResponse)
+async def update_source(
+    source_id: int,
+    body: LogoSourceUpdate,
+    _user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(LogoSource).where(LogoSource.id == source_id))
+    source = result.scalar_one_or_none()
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+
+    if body.name is not None:
+        source.name = body.name
+    if body.enabled is not None:
+        source.enabled = body.enabled
+    if body.branch is not None:
+        source.branch = body.branch
+        if source_id in _source_caches:
+            del _source_caches[source_id]
+    if body.path_prefix is not None:
+        source.path_prefix = body.path_prefix
+        if source_id in _source_caches:
+            del _source_caches[source_id]
+
+    await db.commit()
+    await db.refresh(source)
+
+    count = len(_source_caches.get(source.id, {}).get("entries", []))
+    return LogoSourceResponse(
+        id=source.id,
+        name=source.name,
+        repo_owner=source.repo_owner,
+        repo_name=source.repo_name,
+        branch=source.branch,
+        path_prefix=source.path_prefix,
+        enabled=source.enabled,
+        is_builtin=source.is_builtin,
+        logo_count=count,
+    )
+
+
+@router.delete("/sources/{source_id}")
+async def delete_source(
+    source_id: int,
+    _user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(LogoSource).where(LogoSource.id == source_id))
+    source = result.scalar_one_or_none()
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+    if source.is_builtin:
+        raise HTTPException(status_code=400, detail="Cannot delete built-in sources. Disable them instead.")
+
+    await db.delete(source)
+    await db.commit()
+    if source_id in _source_caches:
+        del _source_caches[source_id]
+    return {"ok": True}
+
+
+@router.post("/sources/{source_id}/refresh")
+async def refresh_source(
+    source_id: int,
+    _user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(LogoSource).where(LogoSource.id == source_id))
+    source = result.scalar_one_or_none()
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+
+    if source_id in _source_caches:
+        del _source_caches[source_id]
+
+    entries = await _get_tree_for_source(source)
+    return {"ok": True, "logo_count": len(entries)}
+
+
 @router.get("/search", response_model=list[LogoMatch])
 async def search_logos(
     q: str = Query(..., min_length=1, description="Search term"),
+    source_id: int | None = Query(None, description="Filter by source ID"),
     limit: int = Query(30, ge=1, le=100),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
     _user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    entries = await _get_tree()
+    if source_id is not None:
+        result = await db.execute(
+            select(LogoSource).where(LogoSource.id == source_id, LogoSource.enabled == True)
+        )
+        sources = result.scalars().all()
+    else:
+        result = await db.execute(
+            select(LogoSource).where(LogoSource.enabled == True)
+        )
+        sources = result.scalars().all()
+
+    if not sources:
+        return []
 
     cleaned = _clean_channel_name(q)
     search_term = cleaned if cleaned else q.strip()
 
-    logger.info("Logo search: raw=%r cleaned=%r offset=%d (%d entries)",
-                q, search_term, offset, len(entries))
+    logger.info("Logo search: raw=%r cleaned=%r source_id=%s offset=%d",
+                q, search_term, source_id, offset)
 
     scored = []
-    for entry in entries:
-        score = _fuzzy_score(search_term, entry["filename"])
-        if score >= 0.4:
-            scored.append((score, entry))
+    for source in sources:
+        try:
+            entries = await _get_tree_for_source(source)
+        except Exception:
+            continue
+
+        for entry in entries:
+            score = _fuzzy_score(search_term, entry["filename"])
+            if score >= 0.4:
+                scored.append((score, entry, source))
 
     scored.sort(key=lambda x: x[0], reverse=True)
 
     page = scored[offset:offset + limit]
 
     results = []
-    for score, entry in page:
+    for score, entry, source in page:
         results.append(LogoMatch(
             filename=entry["filename"],
             path=entry["path"],
-            url=f"{RAW_BASE_URL}/{entry['path']}",
+            url=f"{entry['raw_base']}/{entry['path']}",
             score=round(score, 3),
+            source_id=source.id,
+            source_name=source.name,
         ))
 
     return results
@@ -180,7 +400,7 @@ async def apply_logo(
     _user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    settings = await get_all_settings(db)
+    settings = await _get_settings(db)
     backend_type = settings.get("backend_type")
     backend_url = settings.get("backend_url")
 
@@ -249,3 +469,13 @@ async def apply_logo(
         message=f"Logo '{request.logo_name}' applied to channel {request.channel_id}",
         logo_id=logo_id,
     )
+
+
+async def _get_settings(db: AsyncSession):
+    from config import get_all_settings
+    return await get_all_settings(db)
+
+
+async def get_backend_headers(settings: dict):
+    from config import get_backend_headers as _get_headers
+    return await _get_headers(settings)

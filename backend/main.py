@@ -9,8 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from auth import router as auth_router
 from channels import router as channels_router
 from config import router as config_router
-from database import init_db
-from logos import router as logos_router, _get_tree
+from database import init_db, seed_builtin_sources
+from logos import router as logos_router, preload_all_sources
 from updates import router as updates_router
 
 logging.basicConfig(
@@ -20,26 +20,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def _preload_logo_tree():
-    try:
-        entries = await _get_tree()
-        logger.info("Preloaded %d logo entries from GitHub", len(entries))
-    except Exception as e:
-        logger.warning("Logo tree preload failed (will retry on first search): %s", e)
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Initializing database")
     await init_db()
-    asyncio.create_task(_preload_logo_tree())
+    await seed_builtin_sources()
+    asyncio.create_task(preload_all_sources())
     logger.info("TV Logo Finder backend ready")
     yield
 
 
 app = FastAPI(
     title="TV Logo Finder",
-    version="1.0.1",
+    version="1.0.2",
     lifespan=lifespan,
 )
 

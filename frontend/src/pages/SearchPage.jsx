@@ -17,18 +17,17 @@ import {
   Affix,
   Transition,
   ActionIcon,
-  Alert,
   Tabs,
   Badge,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { Search, Check, X, Image as ImageIcon, AlertTriangle } from 'lucide-react';
+import { Search, Check, X, Image as ImageIcon } from 'lucide-react';
 import api from '../api';
 import useChannelStore from '../store/channels';
 
 function LogoCard({ logo, selected, onSelect }) {
   const [imgError, setImgError] = useState(false);
-  const isSelected = selected?.filename === logo.filename;
+  const isSelected = selected?.filename === logo.filename && selected?.source_id === logo.source_id;
 
   return (
     <Paper
@@ -111,15 +110,24 @@ function ChannelSearchPanel({ channel, channelOptions, allChannels, onLogoApplie
   const [applying, setApplying] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [sources, setSources] = useState([]);
+  const [activeSource, setActiveSource] = useState('all');
+
+  useEffect(() => {
+    api.get('/api/logos/sources').then(setSources).catch(() => {});
+  }, []);
 
   const doSearch = useCallback(
-    async (searchQuery, currentOffset = 0, append = false) => {
+    async (searchQuery, currentOffset = 0, append = false, sourceId = null) => {
       if (!searchQuery.trim()) return;
       setLoading(true);
       setSearched(true);
       try {
         const limit = 30;
-        const url = `/api/logos/search?q=${encodeURIComponent(searchQuery)}&limit=${limit}&offset=${currentOffset}`;
+        let url = `/api/logos/search?q=${encodeURIComponent(searchQuery)}&limit=${limit}&offset=${currentOffset}`;
+        if (sourceId) {
+          url += `&source_id=${sourceId}`;
+        }
         const logos = await api.get(url);
         if (append) {
           setResults((prev) => [...prev, ...logos]);
@@ -150,11 +158,22 @@ function ChannelSearchPanel({ channel, channelOptions, allChannels, onLogoApplie
   const handleSearch = (e) => {
     e.preventDefault();
     setSelectedLogo(null);
-    doSearch(query, 1, false);
+    const sourceId = activeSource !== 'all' ? activeSource : null;
+    doSearch(query, 0, false, sourceId);
+  };
+
+  const handleSourceChange = (val) => {
+    setActiveSource(val);
+    setSelectedLogo(null);
+    if (query.trim()) {
+      const sourceId = val !== 'all' ? val : null;
+      doSearch(query, 0, false, sourceId);
+    }
   };
 
   const handleLoadMore = () => {
-    doSearch(query, page, true);
+    const sourceId = activeSource !== 'all' ? activeSource : null;
+    doSearch(query, page, true, sourceId);
   };
 
   const handleApply = async () => {
@@ -187,6 +206,8 @@ function ChannelSearchPanel({ channel, channelOptions, allChannels, onLogoApplie
     setApplying(false);
   };
 
+  const enabledSources = sources.filter((s) => s.enabled);
+
   return (
     <Stack gap="md" pb={selectedLogo ? 100 : 0}>
       {channel && (
@@ -217,6 +238,25 @@ function ChannelSearchPanel({ channel, channelOptions, allChannels, onLogoApplie
         </Group>
       </form>
 
+      {enabledSources.length > 1 && (
+        <Tabs value={activeSource} onChange={handleSourceChange} color="teal">
+          <Tabs.List>
+            <Tabs.Tab value="all">
+              All Sources
+            </Tabs.Tab>
+            {enabledSources.map((s) => (
+              <Tabs.Tab key={s.id} value={String(s.id)} rightSection={
+                s.logo_count > 0 ? (
+                  <Badge size="xs" variant="light" color="gray">{s.logo_count.toLocaleString()}</Badge>
+                ) : null
+              }>
+                {s.name}
+              </Tabs.Tab>
+            ))}
+          </Tabs.List>
+        </Tabs>
+      )}
+
       {loading && results.length === 0 ? (
         <Center py="xl">
           <Loader color="teal" />
@@ -236,9 +276,9 @@ function ChannelSearchPanel({ channel, channelOptions, allChannels, onLogoApplie
             {hasMore ? '+' : ''}
           </Text>
           <SimpleGrid cols={{ base: 2, xs: 3, sm: 4, md: 5, lg: 6 }}>
-            {results.map((logo) => (
+            {results.map((logo, idx) => (
               <LogoCard
-                key={logo.filename}
+                key={`${logo.source_id}-${logo.filename}-${idx}`}
                 logo={logo}
                 selected={selectedLogo}
                 onSelect={setSelectedLogo}
@@ -298,9 +338,9 @@ function ChannelSearchPanel({ channel, channelOptions, allChannels, onLogoApplie
                       </Box>
                       <Stack gap={2}>
                         <Text size="sm" c="white" fw={500} lineClamp={1}>
-                          {selectedLogo.name}
+                          {selectedLogo.filename}
                         </Text>
-                        <Text size="xs" c="dimmed">Selected logo</Text>
+                        <Text size="xs" c="dimmed">{selectedLogo.source_name}</Text>
                       </Stack>
                     </>
                   )}

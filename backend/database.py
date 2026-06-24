@@ -35,3 +35,37 @@ async def _migrate(conn):
         ))
     except Exception:
         pass
+
+
+async def seed_builtin_sources():
+    from models import LogoSource
+    from sqlalchemy import select
+
+    BUILTIN_SOURCES = [
+        {
+            "name": "TVLogos (jesmannstl)",
+            "repo_owner": "jesmannstl",
+            "repo_name": "tvlogos",
+            "branch": "main",
+            "path_prefix": "AllNamedByChannel/",
+        },
+        {
+            "name": "TV Logos (tv-logo)",
+            "repo_owner": "tv-logo",
+            "repo_name": "tv-logos",
+            "branch": "main",
+            "path_prefix": "countries/",
+        },
+    ]
+
+    async with async_session() as session:
+        result = await session.execute(
+            select(LogoSource).where(LogoSource.is_builtin == True)
+        )
+        existing = {(s.repo_owner, s.repo_name) for s in result.scalars().all()}
+
+        for src in BUILTIN_SOURCES:
+            if (src["repo_owner"], src["repo_name"]) not in existing:
+                session.add(LogoSource(**src, enabled=True, is_builtin=True))
+
+        await session.commit()
