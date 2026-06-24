@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 import re
@@ -69,15 +70,10 @@ class LogoSourceUpdate(BaseModel):
     path_prefix: str | None = None
 
 
-async def _get_tree_for_source(source: LogoSource) -> list[dict]:
-    source_id = source.id
-    now = time.time()
+_fetching_sources: set[int] = set()
 
-    if source_id in _source_caches:
-        cache = _source_caches[source_id]
-        if cache["entries"] and (now - cache["fetched_at"]) < CACHE_TTL:
-            return cache["entries"]
 
+async def _fetch_tree_for_source(source: LogoSource) -> list[dict]:
     tree_url = f"https://api.github.com/repos/{source.repo_owner}/{source.repo_name}/git/trees/{source.branch}?recursive=1"
     raw_base = f"https://raw.githubusercontent.com/{source.repo_owner}/{source.repo_name}/{source.branch}"
 
@@ -88,8 +84,6 @@ async def _get_tree_for_source(source: LogoSource) -> list[dict]:
             resp.raise_for_status()
     except httpx.HTTPError as e:
         logger.error("Failed to fetch GitHub tree for %s/%s: %s", source.repo_owner, source.repo_name, e)
-        if source_id in _source_caches and _source_caches[source_id]["entries"]:
-            return _source_caches[source_id]["entries"]
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Failed to fetch logo repository {source.repo_owner}/{source.repo_name} from GitHub",
@@ -113,9 +107,42 @@ async def _get_tree_for_source(source: LogoSource) -> list[dict]:
             "raw_base": raw_base,
         })
 
-    _source_caches[source_id] = {"entries": entries, "fetched_at": now}
+    _source_caches[source.id] = {"entries": entries, "fetched_at": time.time()}
     logger.info("Cached %d logo entries from %s/%s", len(entries), source.repo_owner, source.repo_name)
     return entries
+
+
+async def _get_tree_for_source(source: LogoSource) -> list[dict]:
+    source_id = source.id
+    now = time.time()
+
+    if source_id in _source_caches:
+        cache = _source_caches[source_id]
+        if cache["entries"] and (now - cache["fetched_at"]) < CACHE_TTL:
+            return cache["entries"]
+
+    if source_id in _source_caches and _source_caches[source_id]["entries"]:
+        return _source_caches[source_id]["entries"]
+
+    return await _fetch_tree_for_source(source)
+
+
+def _get_cached_entries(source_id: int) -> list[dict]:
+    if source_id in _source_caches and _source_caches[source_id]["entries"]:
+        return _source_caches[source_id]["entries"]
+    return []
+
+
+async def _background_refresh(source: LogoSource):
+    if source.id in _fetching_sources:
+        return
+    _fetching_sources.add(source.id)
+    try:
+        await _fetch_tree_for_source(source)
+    except Exception as e:
+        logger.warning("Background refresh failed for %s/%s: %s", source.repo_owner, source.repo_name, e)
+    finally:
+        _fetching_sources.discard(source.id)
 
 
 async def preload_all_sources():
@@ -126,13 +153,9 @@ async def preload_all_sources():
                 select(LogoSource).where(LogoSource.enabled == True)
             )
             sources = result.scalars().all()
-            total = 0
-            for source in sources:
-                try:
-                    entries = await _get_tree_for_source(source)
-                    total += len(entries)
-                except Exception as e:
-                    logger.warning("Preload failed for %s/%s: %s", source.repo_owner, source.repo_name, e)
+            tasks = [_fetch_tree_for_source(s) for s in sources]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            total = sum(len(r) for r in results if isinstance(r, list))
             logger.info("Preloaded %d total logo entries from %d sources", total, len(sources))
     except Exception as e:
         logger.warning("Logo preload failed (will retry on first search): %s", e)
@@ -365,11 +388,13 @@ async def search_logos(
                 q, search_term, source_id, offset)
 
     scored = []
+    now = time.time()
     for source in sources:
-        try:
-            entries = await _get_tree_for_source(source)
-        except Exception:
-            continue
+        entries = _get_cached_entries(source.id)
+
+        cache = _source_caches.get(source.id)
+        if not cache or not cache["entries"] or (now - cache["fetched_at"]) >= CACHE_TTL:
+            asyncio.create_task(_background_refresh(source))
 
         for entry in entries:
             score = _fuzzy_score(search_term, entry["filename"])
