@@ -54,7 +54,7 @@ const useChannelStore = create((set, get) => ({
     set((state) => ({
       channels: state.channels.map((ch) =>
         ch.id === channelId
-          ? { ...ch, logo_url: logoUrl, logo_name: logoName }
+          ? { ...ch, logo_url: logoUrl, cache_logo_url: null, logo_name: logoName }
           : ch
       ),
     }));
