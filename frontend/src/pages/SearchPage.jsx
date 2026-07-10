@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Paper,
   Title,
@@ -99,7 +99,8 @@ function LogoCard({ logo, selected, onSelect }) {
   );
 }
 
-function ChannelSearchPanel({ channel, channelOptions, allChannels, onLogoApplied, defaultQuery }) {
+function ChannelSearchPanel({ channel, channelOptions, allChannels, onLogoApplied, defaultQuery, isBatch }) {
+  const navigate = useNavigate();
   const { updateChannelLogo } = useChannelStore();
   const [query, setQuery] = useState(defaultQuery || channel?.name || '');
   const [results, setResults] = useState([]);
@@ -196,6 +197,9 @@ function ChannelSearchPanel({ channel, channelOptions, allChannels, onLogoApplie
       });
       setSelectedLogo(null);
       if (onLogoApplied) onLogoApplied(selectedChannelId);
+      if (!isBatch) {
+        navigate('/dashboard');
+      }
     } catch (err) {
       notifications.show({
         title: 'Failed to apply logo',
@@ -451,6 +455,7 @@ export default function SearchPage() {
                 channelOptions={channelOptions}
                 allChannels={channels}
                 onLogoApplied={handleLogoApplied}
+                isBatch
               />
             </Tabs.Panel>
           ))}
@@ -473,6 +478,7 @@ export default function SearchPage() {
         channelOptions={channelOptions}
         allChannels={channels}
         onLogoApplied={handleLogoApplied}
+        isBatch={!singleChannel}
         defaultQuery={queryParam}
       />
     </Stack>
