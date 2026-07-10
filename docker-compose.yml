@@ -3,7 +3,7 @@ services:
     image: ghcr.io/knmplace/tv-logo-finder:latest
     container_name: tv-logo-finder
     ports:
-      - "6102:6102"
+      - "6102:80"
     volumes:
       - tv-logo-finder-data:/data
     environment:

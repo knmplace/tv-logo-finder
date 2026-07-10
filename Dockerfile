@@ -33,7 +33,7 @@ COPY nginx.conf /etc/nginx/sites-available/default
 
 RUN mkdir -p /data
 
-EXPOSE 6102
+EXPOSE 80
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
