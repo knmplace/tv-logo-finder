@@ -157,13 +157,21 @@ function VersionCard() {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { channels, loading, syncing, lastSynced, fetchChannels, syncChannels } =
-    useChannelStore();
+  const {
+    channels,
+    loading,
+    syncing,
+    lastSynced,
+    fetchChannels,
+    syncChannels,
+    page,
+    setPage,
+    pageSize,
+    setPageSize,
+  } = useChannelStore();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [selected, setSelected] = useState([]);
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(25);
 
   useEffect(() => {
     if (channels.length === 0) fetchChannels();
@@ -230,7 +238,8 @@ export default function DashboardPage() {
   }, [filter, search, pageSize]);
 
   const totalPages = Math.ceil(filtered.length / pageSize);
-  const pageRows = filtered.slice(page * pageSize, (page + 1) * pageSize);
+  const safePage = totalPages > 0 ? Math.min(page, totalPages - 1) : 0;
+  const pageRows = filtered.slice(safePage * pageSize, (safePage + 1) * pageSize);
 
   return (
     <Stack gap="lg" pb={selected.length > 0 ? 80 : 0}>
@@ -447,7 +456,7 @@ export default function DashboardPage() {
             <Group justify="space-between" align="center">
               <Group gap="sm" align="center">
                 <Text size="sm" c="#a1a1aa">
-                  Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, filtered.length)} of {filtered.length}
+                  Showing {safePage * pageSize + 1}–{Math.min((safePage + 1) * pageSize, filtered.length)} of {filtered.length}
                 </Text>
                 <Select
                   data={PAGE_SIZE_OPTIONS}
@@ -464,8 +473,8 @@ export default function DashboardPage() {
                   <ActionIcon
                     variant="subtle"
                     color="gray"
-                    disabled={page === 0}
-                    onClick={() => setPage((p) => p - 1)}
+                    disabled={safePage === 0}
+                    onClick={() => setPage(safePage - 1)}
                   >
                     <ChevronLeft size={16} />
                   </ActionIcon>
@@ -473,8 +482,8 @@ export default function DashboardPage() {
                     <Button
                       key={i}
                       size="xs"
-                      variant={i === page ? 'filled' : 'subtle'}
-                      color={i === page ? 'teal' : 'gray'}
+                      variant={i === safePage ? 'filled' : 'subtle'}
+                      color={i === safePage ? 'teal' : 'gray'}
                       onClick={() => setPage(i)}
                       style={{ minWidth: 32 }}
                     >
@@ -484,8 +493,8 @@ export default function DashboardPage() {
                   <ActionIcon
                     variant="subtle"
                     color="gray"
-                    disabled={page >= totalPages - 1}
-                    onClick={() => setPage((p) => p + 1)}
+                    disabled={safePage >= totalPages - 1}
+                    onClick={() => setPage(safePage + 1)}
                   >
                     <ChevronRight size={16} />
                   </ActionIcon>

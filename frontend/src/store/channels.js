@@ -7,6 +7,11 @@ const useChannelStore = create((set, get) => ({
   syncing: false,
   lastSynced: null,
   error: null,
+  pageSize: 25,
+  page: 0,
+
+  setPageSize: (pageSize) => set({ pageSize }),
+  setPage: (page) => set({ page }),
 
   fetchChannels: async () => {
     set({ loading: true, error: null });
