@@ -35,6 +35,18 @@ async def _migrate(conn):
         ))
     except Exception:
         pass
+    try:
+        await conn.execute(text(
+            "ALTER TABLE logo_sources ADD COLUMN source_type VARCHAR(20) DEFAULT 'repo'"
+        ))
+    except Exception:
+        pass
+    try:
+        await conn.execute(text(
+            "ALTER TABLE logo_sources ADD COLUMN media_type VARCHAR(20) DEFAULT 'channel'"
+        ))
+    except Exception:
+        pass
 
 
 async def seed_builtin_sources():
@@ -48,6 +60,8 @@ async def seed_builtin_sources():
             "repo_name": "tvlogos",
             "branch": "main",
             "path_prefix": "AllNamedByChannel/",
+            "source_type": "repo",
+            "media_type": "channel",
         },
         {
             "name": "TV Logos (tv-logo)",
@@ -55,6 +69,17 @@ async def seed_builtin_sources():
             "repo_name": "tv-logos",
             "branch": "main",
             "path_prefix": "countries/",
+            "source_type": "repo",
+            "media_type": "channel",
+        },
+        {
+            "name": "TVmaze",
+            "repo_owner": None,
+            "repo_name": None,
+            "branch": "",
+            "path_prefix": "",
+            "source_type": "tvmaze",
+            "media_type": "show",
         },
     ]
 
@@ -62,10 +87,11 @@ async def seed_builtin_sources():
         result = await session.execute(
             select(LogoSource).where(LogoSource.is_builtin == True)
         )
-        existing = {(s.repo_owner, s.repo_name) for s in result.scalars().all()}
+        existing = {(s.repo_owner, s.repo_name, s.source_type) for s in result.scalars().all()}
 
         for src in BUILTIN_SOURCES:
-            if (src["repo_owner"], src["repo_name"]) not in existing:
+            key = (src["repo_owner"], src["repo_name"], src["source_type"])
+            if key not in existing:
                 session.add(LogoSource(**src, enabled=True, is_builtin=True))
 
         await session.commit()

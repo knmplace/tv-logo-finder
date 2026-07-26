@@ -369,6 +369,7 @@ function LogoSourcesSection() {
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th c="#a1a1aa">Source</Table.Th>
+                  <Table.Th c="#a1a1aa">Media</Table.Th>
                   <Table.Th c="#a1a1aa">Repository</Table.Th>
                   <Table.Th c="#a1a1aa" ta="center">Logos</Table.Th>
                   <Table.Th c="#a1a1aa" ta="center">Enabled</Table.Th>
@@ -384,8 +385,13 @@ function LogoSourcesSection() {
                         {s.is_builtin && <Badge size="xs" variant="light" color="gray">Built-in</Badge>}
                       </Group>
                     </Table.Td>
+                    <Table.Td>
+                      <Badge size="xs" variant="light" color={s.media_type === 'show' ? 'grape' : 'blue'}>
+                        {s.media_type === 'show' ? 'Show Posters' : 'Channel Logos'}
+                      </Badge>
+                    </Table.Td>
                     <Table.Td c="#a1a1aa" style={{ fontSize: 13 }}>
-                      {s.repo_owner}/{s.repo_name}
+                      {s.source_type === 'repo' ? `${s.repo_owner}/${s.repo_name}` : 'API'}
                     </Table.Td>
                     <Table.Td ta="center" c="#a1a1aa">
                       {s.logo_count > 0 ? s.logo_count.toLocaleString() : '—'}
@@ -400,11 +406,13 @@ function LogoSourcesSection() {
                     </Table.Td>
                     <Table.Td ta="center">
                       <Group gap={4} justify="center">
-                        <Tooltip label="Refresh cache">
-                          <ActionIcon size="sm" variant="subtle" color="teal" onClick={() => handleRefresh(s)}>
-                            <RefreshCw size={14} />
-                          </ActionIcon>
-                        </Tooltip>
+                        {s.source_type === 'repo' && (
+                          <Tooltip label="Refresh cache">
+                            <ActionIcon size="sm" variant="subtle" color="teal" onClick={() => handleRefresh(s)}>
+                              <RefreshCw size={14} />
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
                         {!s.is_builtin && (
                           <Tooltip label="Remove source">
                             <ActionIcon size="sm" variant="subtle" color="red" onClick={() => handleDelete(s)}>

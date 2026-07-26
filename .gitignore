@@ -4,6 +4,7 @@ __pycache__/
 *.pyc
 data/
 .env
+.env.api
 *.db
 
 # Claude Code

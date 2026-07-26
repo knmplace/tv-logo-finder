@@ -29,6 +29,8 @@ class LogoMatch(BaseModel):
     score: float
     source_id: int
     source_name: str
+    summary: str | None = None
+    premiered: str | None = None
 
 
 class LogoApplyRequest(BaseModel):
@@ -46,12 +48,14 @@ class LogoApplyResult(BaseModel):
 class LogoSourceResponse(BaseModel):
     id: int
     name: str
-    repo_owner: str
-    repo_name: str
+    repo_owner: str | None
+    repo_name: str | None
     branch: str
     path_prefix: str
     enabled: bool
     is_builtin: bool
+    source_type: str
+    media_type: str
     logo_count: int = 0
 
 
@@ -150,7 +154,7 @@ async def preload_all_sources():
     try:
         async with async_session() as session:
             result = await session.execute(
-                select(LogoSource).where(LogoSource.enabled == True)
+                select(LogoSource).where(LogoSource.enabled == True, LogoSource.source_type == "repo")
             )
             sources = result.scalars().all()
             tasks = [_fetch_tree_for_source(s) for s in sources]
@@ -159,6 +163,38 @@ async def preload_all_sources():
             logger.info("Preloaded %d total logo entries from %d sources", total, len(sources))
     except Exception as e:
         logger.warning("Logo preload failed (will retry on first search): %s", e)
+
+
+async def _search_tvmaze(query: str) -> list[dict]:
+    url = "https://api.tvmaze.com/search/shows"
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(url, params={"q": query})
+            resp.raise_for_status()
+    except httpx.HTTPError as e:
+        logger.error("TVmaze search failed for %r: %s", query, e)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to reach TVmaze",
+        )
+
+    data = resp.json()
+    results = []
+    for item in data:
+        show = item.get("show") or {}
+        image = show.get("image") or {}
+        poster_url = image.get("original") or image.get("medium")
+        if not poster_url:
+            continue
+        results.append({
+            "filename": show.get("name", ""),
+            "path": str(show.get("id", "")),
+            "url": poster_url,
+            "score": item.get("score", 0.0),
+            "summary": show.get("summary"),
+            "premiered": show.get("premiered"),
+        })
+    return results
 
 
 _COUNTRY_PREFIX_RE = re.compile(
@@ -227,10 +263,14 @@ def _fuzzy_score(query: str, filename: str) -> float:
 
 @router.get("/sources", response_model=list[LogoSourceResponse])
 async def list_sources(
+    media_type: str | None = Query(None, description="Filter by media_type (channel or show)"),
     _user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(LogoSource).order_by(LogoSource.id))
+    query = select(LogoSource).order_by(LogoSource.id)
+    if media_type:
+        query = query.where(LogoSource.media_type == media_type)
+    result = await db.execute(query)
     sources = result.scalars().all()
     resp = []
     for s in sources:
@@ -244,6 +284,8 @@ async def list_sources(
             path_prefix=s.path_prefix,
             enabled=s.enabled,
             is_builtin=s.is_builtin,
+            source_type=s.source_type,
+            media_type=s.media_type,
             logo_count=count,
         ))
     return resp
@@ -263,6 +305,8 @@ async def create_source(
         path_prefix=body.path_prefix,
         enabled=True,
         is_builtin=False,
+        source_type="repo",
+        media_type="channel",
     )
     db.add(source)
     await db.commit()
@@ -283,6 +327,8 @@ async def create_source(
         path_prefix=source.path_prefix,
         enabled=source.enabled,
         is_builtin=source.is_builtin,
+        source_type=source.source_type,
+        media_type=source.media_type,
         logo_count=count,
     )
 
@@ -325,6 +371,8 @@ async def update_source(
         path_prefix=source.path_prefix,
         enabled=source.enabled,
         is_builtin=source.is_builtin,
+        source_type=source.source_type,
+        media_type=source.media_type,
         logo_count=count,
     )
 
@@ -359,6 +407,8 @@ async def refresh_source(
     source = result.scalar_one_or_none()
     if not source:
         raise HTTPException(status_code=404, detail="Source not found")
+    if source.source_type != "repo":
+        return {"ok": True, "logo_count": 0}
 
     if source_id in _source_caches:
         del _source_caches[source_id]
@@ -371,24 +421,39 @@ async def refresh_source(
 async def search_logos(
     q: str = Query(..., min_length=1, description="Search term"),
     source_id: int | None = Query(None, description="Filter by source ID"),
+    media_type: str = Query("channel", description="channel (logos) or show (posters)"),
     limit: int = Query(30, ge=1, le=100),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
     _user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    query = select(LogoSource).where(LogoSource.enabled == True, LogoSource.media_type == media_type)
     if source_id is not None:
-        result = await db.execute(
-            select(LogoSource).where(LogoSource.id == source_id, LogoSource.enabled == True)
-        )
-        sources = result.scalars().all()
-    else:
-        result = await db.execute(
-            select(LogoSource).where(LogoSource.enabled == True)
-        )
-        sources = result.scalars().all()
+        query = query.where(LogoSource.id == source_id)
+    result = await db.execute(query)
+    sources = result.scalars().all()
 
     if not sources:
         return []
+
+    if media_type == "show":
+        results = []
+        for source in sources:
+            if source.source_type != "tvmaze":
+                continue
+            matches = await _search_tvmaze(q.strip())
+            for m in matches[offset:offset + limit]:
+                results.append(LogoMatch(
+                    filename=m["filename"],
+                    path=m["path"],
+                    url=m["url"],
+                    score=round(m["score"], 3),
+                    source_id=source.id,
+                    source_name=source.name,
+                    summary=m.get("summary"),
+                    premiered=m.get("premiered"),
+                ))
+        return results
 
     cleaned = _clean_channel_name(q)
     search_term = cleaned if cleaned else q.strip()
