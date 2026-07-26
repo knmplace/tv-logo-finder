@@ -162,6 +162,7 @@ export default function DashboardPage() {
     loading,
     syncing,
     lastSynced,
+    error,
     fetchChannels,
     syncChannels,
     page,
@@ -188,8 +189,9 @@ export default function DashboardPage() {
     } else {
       notifications.show({
         title: 'Sync failed',
-        message: 'Could not sync channels from backend',
+        message: useChannelStore.getState().error || 'Could not sync channels from backend',
         color: 'red',
+        autoClose: false,
       });
     }
   };
@@ -289,6 +291,12 @@ export default function DashboardPage() {
       {syncing && channels.length === 0 && (
         <Alert icon={<Info size={18} />} color="blue" variant="light" title="First sync in progress">
           Fetching your channel list from the backend. This may take a moment on the first sync — the filter tabs and controls will be available once loading completes.
+        </Alert>
+      )}
+
+      {error && !syncing && (
+        <Alert icon={<XCircle size={18} />} color="red" variant="light" title="Sync error">
+          {error}
         </Alert>
       )}
 

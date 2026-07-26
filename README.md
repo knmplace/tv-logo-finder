@@ -149,14 +149,14 @@ Use the filter tabs (All / Missing Logo / Has Logo) and search box to narrow dow
 4. Browse the results grid — logos are shown as thumbnails with filenames
 5. Click a logo to select it (teal border + checkmark appears)
 6. The target channel is pre-selected in the dropdown at the bottom
-7. Click **Apply Logo** to assign it
+7. Click **Apply Logo** to assign it — you'll be returned to the Dashboard automatically with the new logo already showing (no manual sync needed)
 
 **Batch search (up to 5 channels at once):**
 1. Use the **checkboxes** on the left side of the dashboard to select up to 5 channels
 2. A bottom bar appears showing your selected channels
 3. Click **Search Logos for Selected**
 4. You'll see a **tabbed interface** — one tab per channel, each with its own search results
-5. Search and apply logos independently for each channel
+5. Search and apply logos independently for each channel — applying doesn't leave the page, so you can move through all your selected channels in one session
 6. A green checkmark appears on the tab after you apply a logo
 
 **From Logo Search directly:**
@@ -190,7 +190,8 @@ When you apply a logo:
 1. A new logo entry is created in your backend (Dispatcharr/ECM) with the GitHub raw URL
 2. The logo is assigned to the selected channel
 3. Your media server (Plex/Emby/Jellyfin) will pull the logo directly from GitHub's CDN
-4. The dashboard updates to show the new logo URL
+4. The dashboard updates immediately to show the new logo — no need to click "Sync Channels" first
+5. The dashboard also remembers your page size and current page, so applying a logo and returning doesn't reset you back to page 1
 
 ## Configuration
 
