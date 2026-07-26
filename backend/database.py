@@ -48,6 +48,34 @@ async def _migrate(conn):
     except Exception:
         pass
 
+    result = await conn.execute(text("PRAGMA table_info(logo_sources)"))
+    columns = result.fetchall()
+    repo_owner_notnull = any(c[1] == "repo_owner" and c[3] for c in columns)
+    if repo_owner_notnull:
+        await conn.execute(text("""
+            CREATE TABLE logo_sources_new (
+                id INTEGER PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                repo_owner VARCHAR(255),
+                repo_name VARCHAR(255),
+                branch VARCHAR(100),
+                path_prefix VARCHAR(500),
+                enabled BOOLEAN,
+                is_builtin BOOLEAN,
+                source_type VARCHAR(20) DEFAULT 'repo',
+                media_type VARCHAR(20) DEFAULT 'channel',
+                created_at DATETIME
+            )
+        """))
+        await conn.execute(text("""
+            INSERT INTO logo_sources_new
+            SELECT id, name, repo_owner, repo_name, branch, path_prefix,
+                   enabled, is_builtin, source_type, media_type, created_at
+            FROM logo_sources
+        """))
+        await conn.execute(text("DROP TABLE logo_sources"))
+        await conn.execute(text("ALTER TABLE logo_sources_new RENAME TO logo_sources"))
+
 
 async def seed_builtin_sources():
     from models import LogoSource
