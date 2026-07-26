@@ -153,7 +153,7 @@ function ChannelSearchPanel({ channel, channelOptions, allChannels, onLogoApplie
       }
       setLoading(false);
     },
-    []
+    [mediaType]
   );
 
   useEffect(() => {
