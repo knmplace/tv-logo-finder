@@ -21,7 +21,7 @@ import {
   Badge,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { Search, Check, X, Image as ImageIcon, Copy, ExternalLink } from 'lucide-react';
+import { Search, Check, X, Image as ImageIcon, ExternalLink } from 'lucide-react';
 import api from '../api';
 import useChannelStore from '../store/channels';
 
@@ -103,58 +103,53 @@ function LogoCard({ logo, selected, onSelect, isPoster }) {
   );
 }
 
-function ChannelSearchPanel({ channel, channelOptions, allChannels, onLogoApplied, defaultQuery, isBatch, mediaType }) {
+function ChannelSearchPanel({ channel, channelOptions, allChannels, onLogoApplied, defaultQuery, isBatch }) {
   const navigate = useNavigate();
   const { updateChannelLogo } = useChannelStore();
   const [query, setQuery] = useState(defaultQuery || channel?.name || '');
-  const [results, setResults] = useState([]);
+  const [channelResults, setChannelResults] = useState([]);
+  const [showResults, setShowResults] = useState([]);
+  const [mediaType, setMediaType] = useState('channel');
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [selectedLogo, setSelectedLogo] = useState(null);
   const [selectedChannelId, setSelectedChannelId] = useState(channel?.id?.toString() || '');
   const [applying, setApplying] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
   const [sources, setSources] = useState([]);
   const [activeSource, setActiveSource] = useState('all');
 
   useEffect(() => {
     setActiveSource('all');
-    setResults([]);
-    setSearched(false);
-    api.get(`/api/logos/sources?media_type=${mediaType}`).then(setSources).catch(() => {});
-  }, [mediaType]);
+    api.get(`/api/logos/sources?media_type=channel`).then(setSources).catch(() => {});
+  }, []);
 
-  const doSearch = useCallback(
-    async (searchQuery, currentOffset = 0, append = false, sourceId = null) => {
-      if (!searchQuery.trim()) return;
-      setLoading(true);
-      setSearched(true);
-      try {
-        const limit = 30;
-        let url = `/api/logos/search?q=${encodeURIComponent(searchQuery)}&limit=${limit}&offset=${currentOffset}&media_type=${mediaType}`;
-        if (sourceId) {
-          url += `&source_id=${sourceId}`;
-        }
-        const logos = await api.get(url);
-        if (append) {
-          setResults((prev) => [...prev, ...logos]);
-        } else {
-          setResults(logos);
-        }
-        setHasMore(logos.length === limit);
-        setPage(currentOffset + logos.length);
-      } catch (err) {
-        notifications.show({
-          title: 'Search failed',
-          message: err.message,
-          color: 'red',
-        });
-      }
-      setLoading(false);
-    },
-    [mediaType]
-  );
+  const doSearch = useCallback(async (searchQuery) => {
+    if (!searchQuery.trim()) return;
+    setLoading(true);
+    setSearched(true);
+    setActiveSource('all');
+    try {
+      const limit = 30;
+      const url = `/api/logos/search/all?q=${encodeURIComponent(searchQuery)}&limit=${limit}`;
+      const combined = await api.get(url);
+      const channelLogos = combined.channel || [];
+      const posters = combined.show || [];
+      setChannelResults(channelLogos);
+      setShowResults(posters);
+      setMediaType((prev) => {
+        if (channelLogos.length > 0 && posters.length === 0) return 'channel';
+        if (posters.length > 0 && channelLogos.length === 0) return 'show';
+        return prev;
+      });
+    } catch (err) {
+      notifications.show({
+        title: 'Search failed',
+        message: err.message,
+        color: 'red',
+      });
+    }
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     const initialQuery = defaultQuery || channel?.name;
@@ -166,22 +161,12 @@ function ChannelSearchPanel({ channel, channelOptions, allChannels, onLogoApplie
   const handleSearch = (e) => {
     e.preventDefault();
     setSelectedLogo(null);
-    const sourceId = activeSource !== 'all' ? activeSource : null;
-    doSearch(query, 0, false, sourceId);
+    doSearch(query);
   };
 
   const handleSourceChange = (val) => {
     setActiveSource(val);
     setSelectedLogo(null);
-    if (query.trim()) {
-      const sourceId = val !== 'all' ? val : null;
-      doSearch(query, 0, false, sourceId);
-    }
-  };
-
-  const handleLoadMore = () => {
-    const sourceId = activeSource !== 'all' ? activeSource : null;
-    doSearch(query, page, true, sourceId);
   };
 
   const handleApply = async () => {
@@ -217,18 +202,13 @@ function ChannelSearchPanel({ channel, channelOptions, allChannels, onLogoApplie
     setApplying(false);
   };
 
-  const handleCopyUrl = async () => {
-    if (!selectedLogo) return;
-    try {
-      await navigator.clipboard.writeText(selectedLogo.url);
-      notifications.show({ title: 'Copied', message: 'Poster URL copied to clipboard', color: 'teal' });
-    } catch {
-      notifications.show({ title: 'Copy failed', message: 'Could not access clipboard', color: 'red' });
-    }
-  };
-
   const isShowMode = mediaType === 'show';
   const enabledSources = sources.filter((s) => s.enabled);
+
+  const activeResults = isShowMode ? showResults : channelResults;
+  const visibleResults = !isShowMode && activeSource !== 'all'
+    ? activeResults.filter((logo) => String(logo.source_id) === activeSource)
+    : activeResults;
 
   return (
     <Stack gap="md" pb={selectedLogo ? 100 : 0}>
@@ -247,7 +227,7 @@ function ChannelSearchPanel({ channel, channelOptions, allChannels, onLogoApplie
       <form onSubmit={handleSearch}>
         <Group gap="sm">
           <TextInput
-            placeholder={mediaType === 'show' ? 'Search for a TV show...' : 'Search for a channel logo...'}
+            placeholder="Search for a channel or TV show..."
             leftSection={<Search size={18} />}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -260,7 +240,22 @@ function ChannelSearchPanel({ channel, channelOptions, allChannels, onLogoApplie
         </Group>
       </form>
 
-      {enabledSources.length > 1 && (
+      <Tabs value={mediaType} onChange={(val) => { setMediaType(val); setSelectedLogo(null); }} color="teal">
+        <Tabs.List>
+          <Tabs.Tab value="channel" rightSection={
+            searched ? <Badge size="xs" variant="light" color="gray">{channelResults.length}</Badge> : null
+          }>
+            Channel Logos
+          </Tabs.Tab>
+          <Tabs.Tab value="show" rightSection={
+            searched ? <Badge size="xs" variant="light" color="gray">{showResults.length}</Badge> : null
+          }>
+            TV Show Posters
+          </Tabs.Tab>
+        </Tabs.List>
+      </Tabs>
+
+      {!isShowMode && enabledSources.length > 1 && (
         <Tabs value={activeSource} onChange={handleSourceChange} color="teal">
           <Tabs.List>
             <Tabs.Tab value="all">
@@ -279,47 +274,34 @@ function ChannelSearchPanel({ channel, channelOptions, allChannels, onLogoApplie
         </Tabs>
       )}
 
-      {loading && results.length === 0 ? (
+      {loading && visibleResults.length === 0 ? (
         <Center py="xl">
           <Loader color="teal" />
         </Center>
-      ) : searched && results.length === 0 && !loading ? (
+      ) : searched && visibleResults.length === 0 && !loading ? (
         <Center py="xl">
           <Stack align="center" gap="sm">
             <ImageIcon size={48} color="#3f3f46" />
-            <Text c="dimmed">No {mediaType === 'show' ? 'posters' : 'logos'} found for "{query}"</Text>
+            <Text c="dimmed">No {isShowMode ? 'posters' : 'logos'} found for "{query}"</Text>
             <Text size="sm" c="dimmed">Try a different search term or a shorter name</Text>
           </Stack>
         </Center>
-      ) : results.length > 0 ? (
+      ) : visibleResults.length > 0 ? (
         <Stack gap="md">
           <Text size="sm" c="#a1a1aa">
-            {results.length} result{results.length !== 1 ? 's' : ''}
-            {hasMore ? '+' : ''}
+            {visibleResults.length} result{visibleResults.length !== 1 ? 's' : ''}
           </Text>
           <SimpleGrid cols={{ base: 2, xs: 3, sm: 4, md: 5, lg: 6 }}>
-            {results.map((logo, idx) => (
+            {visibleResults.map((logo, idx) => (
               <LogoCard
                 key={`${logo.source_id}-${logo.filename}-${idx}`}
                 logo={logo}
                 selected={selectedLogo}
                 onSelect={setSelectedLogo}
-                isPoster={mediaType === 'show'}
+                isPoster={isShowMode}
               />
             ))}
           </SimpleGrid>
-          {hasMore && (
-            <Center>
-              <Button
-                variant="light"
-                color="teal"
-                onClick={handleLoadMore}
-                loading={loading}
-              >
-                Load More
-              </Button>
-            </Center>
-          )}
         </Stack>
       ) : null}
 
@@ -370,50 +352,38 @@ function ChannelSearchPanel({ channel, channelOptions, allChannels, onLogoApplie
                 </Group>
 
                 <Group gap="sm" wrap="nowrap">
-                  {isShowMode ? (
-                    <>
-                      <Button
-                        variant="light"
-                        color="teal"
-                        leftSection={<Copy size={16} />}
-                        onClick={handleCopyUrl}
-                      >
-                        Copy Image URL
-                      </Button>
-                      <Button
-                        color="teal"
-                        leftSection={<ExternalLink size={16} />}
-                        component="a"
-                        href={selectedLogo?.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Open Full Size
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      {!channel && (
-                        <Select
-                          placeholder="Select channel"
-                          data={channelOptions}
-                          value={selectedChannelId}
-                          onChange={(val) => setSelectedChannelId(val || '')}
-                          searchable
-                          w={280}
-                          size="sm"
-                        />
-                      )}
-                      <Button
-                        color="teal"
-                        onClick={handleApply}
-                        loading={applying}
-                        disabled={!selectedChannelId}
-                      >
-                        Apply Logo
-                      </Button>
-                    </>
+                  {isShowMode && (
+                    <Button
+                      variant="subtle"
+                      color="gray"
+                      leftSection={<ExternalLink size={16} />}
+                      component="a"
+                      href={selectedLogo?.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Open Full Size
+                    </Button>
                   )}
+                  {!channel && (
+                    <Select
+                      placeholder="Select channel"
+                      data={channelOptions}
+                      value={selectedChannelId}
+                      onChange={(val) => setSelectedChannelId(val || '')}
+                      searchable
+                      w={280}
+                      size="sm"
+                    />
+                  )}
+                  <Button
+                    color="teal"
+                    onClick={handleApply}
+                    loading={applying}
+                    disabled={!selectedChannelId}
+                  >
+                    {isShowMode ? 'Apply Poster' : 'Apply Logo'}
+                  </Button>
                   <ActionIcon
                     variant="subtle"
                     color="gray"
@@ -445,7 +415,6 @@ export default function SearchPage() {
   }));
 
   const [appliedChannels, setAppliedChannels] = useState(new Set());
-  const [mediaType, setMediaType] = useState('channel');
 
   const handleLogoApplied = (channelId) => {
     setAppliedChannels((prev) => new Set([...prev, channelId]));
@@ -501,7 +470,6 @@ export default function SearchPage() {
                 allChannels={channels}
                 onLogoApplied={handleLogoApplied}
                 isBatch
-                mediaType="channel"
               />
             </Tabs.Panel>
           ))}
@@ -520,15 +488,6 @@ export default function SearchPage() {
         Logo Search
       </Title>
 
-      {!singleChannel && (
-        <Tabs value={mediaType} onChange={setMediaType} color="teal">
-          <Tabs.List>
-            <Tabs.Tab value="channel">Channel Logos</Tabs.Tab>
-            <Tabs.Tab value="show">TV Show Posters</Tabs.Tab>
-          </Tabs.List>
-        </Tabs>
-      )}
-
       <ChannelSearchPanel
         channel={singleChannel}
         channelOptions={channelOptions}
@@ -536,7 +495,6 @@ export default function SearchPage() {
         onLogoApplied={handleLogoApplied}
         isBatch={!singleChannel}
         defaultQuery={queryParam}
-        mediaType={singleChannel ? 'channel' : mediaType}
       />
     </Stack>
   );

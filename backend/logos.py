@@ -209,9 +209,17 @@ _NOISE_WORDS = {"east", "west", "hd", "uhd", "4k", "fhd", "sd", "television", "n
 
 _COUNTRY_SUFFIX_RE = re.compile(r'-(?:us|uk|ca|au|nz|fr|de|it|es|mx|br|in|jp|za|nl|se|no|dk|fi|pt|at|ch|be|ie|pl|cz|hu|ro|bg|hr|rs|si|sk|gr|tr|il|ae|sa|kr|tw|hk|sg|my|ph|id|th|vn|ar|cl|co|pe|ve|ec|py|uy|bo|cr|pa|do|pr|jm|tt|cu|ht|bs|bb|gy|sr|bz|gt|sv|hn|ni|hz)$', re.IGNORECASE)
 
+_LOOP_PREFIX_RE = re.compile(r'^\s*(?:24[/\-]?7|24x7)\s*[:\-]?\s*', re.IGNORECASE)
+
+
+def _strip_loop_prefix(name: str) -> str:
+    """Strip DVR/loop-channel conventions like '24/7:' that precede the real title."""
+    return _LOOP_PREFIX_RE.sub("", name.strip())
+
 
 def _clean_channel_name(name: str) -> str:
-    cleaned = _COUNTRY_PREFIX_RE.sub("", name.strip())
+    cleaned = _strip_loop_prefix(name)
+    cleaned = _COUNTRY_PREFIX_RE.sub("", cleaned)
     cleaned = re.sub(r'[^\w\s]', ' ', cleaned)
     words = [w for w in cleaned.split() if w.lower() not in _NOISE_WORDS]
     return " ".join(words).strip()
@@ -417,17 +425,10 @@ async def refresh_source(
     return {"ok": True, "logo_count": len(entries)}
 
 
-@router.get("/search", response_model=list[LogoMatch])
-async def search_logos(
-    q: str = Query(..., min_length=1, description="Search term"),
-    source_id: int | None = Query(None, description="Filter by source ID"),
-    media_type: str = Query("channel", description="channel (logos) or show (posters)"),
-    limit: int = Query(30, ge=1, le=100),
-    offset: int = Query(0, ge=0, description="Number of results to skip"),
-    _user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    query = select(LogoSource).where(LogoSource.enabled == True, LogoSource.media_type == media_type)
+async def _search_channel_logos(
+    db: AsyncSession, q: str, source_id: int | None, limit: int, offset: int
+) -> list[LogoMatch]:
+    query = select(LogoSource).where(LogoSource.enabled == True, LogoSource.media_type == "channel")
     if source_id is not None:
         query = query.where(LogoSource.id == source_id)
     result = await db.execute(query)
@@ -435,25 +436,6 @@ async def search_logos(
 
     if not sources:
         return []
-
-    if media_type == "show":
-        results = []
-        for source in sources:
-            if source.source_type != "tvmaze":
-                continue
-            matches = await _search_tvmaze(q.strip())
-            for m in matches[offset:offset + limit]:
-                results.append(LogoMatch(
-                    filename=m["filename"],
-                    path=m["path"],
-                    url=m["url"],
-                    score=round(m["score"], 3),
-                    source_id=source.id,
-                    source_name=source.name,
-                    summary=m.get("summary"),
-                    premiered=m.get("premiered"),
-                ))
-        return results
 
     cleaned = _clean_channel_name(q)
     search_term = cleaned if cleaned else q.strip()
@@ -479,18 +461,82 @@ async def search_logos(
 
     page = scored[offset:offset + limit]
 
-    results = []
-    for score, entry, source in page:
-        results.append(LogoMatch(
+    return [
+        LogoMatch(
             filename=entry["filename"],
             path=entry["path"],
             url=f"{entry['raw_base']}/{entry['path']}",
             score=round(score, 3),
             source_id=source.id,
             source_name=source.name,
-        ))
+        )
+        for score, entry, source in page
+    ]
 
+
+async def _search_show_posters(
+    db: AsyncSession, q: str, source_id: int | None, limit: int, offset: int
+) -> list[LogoMatch]:
+    query = select(LogoSource).where(LogoSource.enabled == True, LogoSource.media_type == "show")
+    if source_id is not None:
+        query = query.where(LogoSource.id == source_id)
+    result = await db.execute(query)
+    sources = result.scalars().all()
+
+    cleaned = _strip_loop_prefix(q)
+    search_term = cleaned if cleaned else q.strip()
+
+    results = []
+    for source in sources:
+        if source.source_type != "tvmaze":
+            continue
+        matches = await _search_tvmaze(search_term)
+        for m in matches[offset:offset + limit]:
+            results.append(LogoMatch(
+                filename=m["filename"],
+                path=m["path"],
+                url=m["url"],
+                score=round(m["score"], 3),
+                source_id=source.id,
+                source_name=source.name,
+                summary=m.get("summary"),
+                premiered=m.get("premiered"),
+            ))
     return results
+
+
+@router.get("/search", response_model=list[LogoMatch])
+async def search_logos(
+    q: str = Query(..., min_length=1, description="Search term"),
+    source_id: int | None = Query(None, description="Filter by source ID"),
+    media_type: str = Query("channel", description="channel (logos) or show (posters)"),
+    limit: int = Query(30, ge=1, le=100),
+    offset: int = Query(0, ge=0, description="Number of results to skip"),
+    _user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if media_type == "show":
+        return await _search_show_posters(db, q, source_id, limit, offset)
+    return await _search_channel_logos(db, q, source_id, limit, offset)
+
+
+class CombinedSearchResponse(BaseModel):
+    channel: list[LogoMatch]
+    show: list[LogoMatch]
+
+
+@router.get("/search/all", response_model=CombinedSearchResponse)
+async def search_logos_all(
+    q: str = Query(..., min_length=1, description="Search term"),
+    limit: int = Query(30, ge=1, le=100),
+    _user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    channel_results, show_results = await asyncio.gather(
+        _search_channel_logos(db, q, None, limit, 0),
+        _search_show_posters(db, q, None, limit, 0),
+    )
+    return CombinedSearchResponse(channel=channel_results, show=show_results)
 
 
 @router.post("/apply", response_model=LogoApplyResult)
