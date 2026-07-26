@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "tv_logo_finder",
+  "project_id": "e84f0e25-9c5b-4078-a513-d43152fca5f0"
+}

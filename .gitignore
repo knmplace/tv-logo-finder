@@ -8,5 +8,11 @@ data/
 
 # Claude Code
 CLAUDE.md
+CLAUDE-ARCHIVE.md
 SESSION_HANDOFF.md
 .claude/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+.beads-credential-key
+.beads/proxieddb/
