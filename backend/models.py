@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -30,7 +30,7 @@ class CachedChannel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    number: Mapped[float | None] = mapped_column(Float, nullable=True)
     group_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     current_logo_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     cache_logo_url: Mapped[str | None] = mapped_column(Text, nullable=True)

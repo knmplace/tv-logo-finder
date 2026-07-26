@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/channels", tags=["channels"])
 class ChannelResponse(BaseModel):
     id: int
     name: str
-    number: int | None
+    number: float | None
     group_name: str | None
     current_logo_url: str | None
     cache_logo_url: str | None
